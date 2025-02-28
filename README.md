@@ -14,26 +14,37 @@ Or if not using CMake, simply copy+paste the headers into your project.
 ```c++
 // Mono data
 // Frame count known at runtime
-auto mono_data = ads::make_mono(ads::frame_count{10000});
+auto mono_data0 = ads::make_mono(ads::frame_count{10000});
+auto mono_data1 = ads::make<1>(ads::frame_count{10000}); // equivalent
+
 // Stereo data
 // Frame count known at runtime
-auto stereo_data = ads::make_stereo(ads::frame_count{10000});
+auto stereo_data0 = ads::make_stereo(ads::frame_count{10000});
+auto stereo_data1 = ads::make<2>(ads::frame_count{10000}); // equivalent
+
 // Arbitrary number of channels known at compile time
 // Frame count known at runtime
 auto data0 = ads::make<10>(ads::frame_count{10000});
+
 // Frame count known at compile time
 // Channel count known at runtime
 auto data1 = ads::make<10>(ads::channel_count{2});
+
 // Channel count and frame count both known at compile time
 auto data2 = ads::make<2, 64>();
+
 // Channel count and frame count both known at runtime
 auto data3 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+
 // Single-channel buffer intended for interleaved audio data
 auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000});
+
 // Convert from interleaved to multi-channel
 ads::deinterleave(interleaved, data3.begin());
+
 // Convert from multi-channel to interleaved
 ads::interleave(data3, interleaved.begin());
+
 // You can also just use any old range of floats for interleaved data
 auto buffer = std::vector<float>{20000};
 ads::interleave(data3, buffer.begin());
