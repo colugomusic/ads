@@ -56,15 +56,15 @@ auto buffer = std::vector<float>{20000};
 ads::interleave(data3, buffer.begin());
 ads::deinterleave(buffer, data3.begin());
 ```
-Although their types are different, the same interface (more or less) is provided for the `data0`, `data1`, `data2` and `data3` buffers created above. There are some extra things enabled if the buffer is known at compile-time to be mono-channel.
+Although their types are different, the same interface (more or less) is provided for the `data0`, `data1`, `data2` and `data3` objects created above. There are some extra things enabled if the storage is known at compile-time to be mono-channel.
 - `get_channel_count()`
 - `get_frame_count()`
 - `begin()`/`end()` : returns specialized iterators for iterating frame-by-frame (even though channels are stored in separate buffers)
-- `resize()` : resize the buffer (channel count or frame count)
+- `resize()` : resize the storage (channel count or frame count)
 - `set()` : set frame values
 - `at()` : return frames, or underlying channel buffers
-- `write()` : for writing audio data to the buffer
-- `read()` : for reading audio data from the buffer
+- `write()` : for writing audio data to the storage
+- `read()` : for reading audio data from the storage
 
 ## Madronalib extension
 If you use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is an extra header with some extension functions:
