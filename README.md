@@ -132,6 +132,77 @@ Although their types are different, the same interface (more or less) is provide
 - `write()` : for writing audio data to the storage
 - `read()` : for reading audio data from the storage
 
+## Reading and writing audio data
+
+The `read()` and `write()` functions are based around the idea of reading and writing chunks of the underlying storage buffers, since this is usually what you want to do in audio code, rather than iterating frame-by-frame.
+
+You can pass in either a single-channel or multi-channel read/write function.
+
+A "single-channel" read function has the form:
+
+`(const float* buffer, ads::frame_idx start, ads::frame_count frame_count) -> ads::frame_count`
+
+A "multi-channel" read function has the form:
+
+`(const float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count) -> ads::frame_count`
+
+A "single-channel" write function has the form:
+
+`(float* buffer, ads::frame_idx start, ads::frame_count frame_count) -> ads::frame_count`
+
+A "multi-channel" write function has the form:
+
+`(float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count) -> ads::frame_count`
+
+- `buffer` is always pre-offset into the part of the underlying buffer that you are reading from or writing to.
+- `ch` is the index of the channel that you are reading from or writing to.
+- `start` is the index of the first frame of the chunk of frames you are reading from or writing to. This is often not needed but is useful in some situations.
+- `frame_count` is the maximum number of frames you should try to read or write. This value will never overflow the end of the underlying buffer.
+- The actual number of frames read or written should be returned from the function.
+
+### Writing examples
+
+This will write ones to both channels:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write([](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 1.0f);
+  return frame_count;
+});
+```
+
+This will write ones to only the second channel:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 1.0f);
+  return frame_count;
+});
+```
+
+This will write zeros to the first channel, and ones to the second channel:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write([](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+  if (ch == 0) { std::fill(buffer, buffer + frame_count.value, 0.0f); }
+  else         { std::fill(buffer, buffer + frame_count.value, 1.0f); }
+  return frame_count;
+});
+```
+
+This does the same thing:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write(ads::channel_idx{0}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 0.0f);
+  return frame_count;
+});
+data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 1.0f);
+  return frame_count;
+});
+```
+
 ## Madronalib extension
 If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some utilities for interacting with `ml::DSPVector`, `ml::DSPVectorArray`, and `ml::DSPVectorDynamic`:
 ```c++
