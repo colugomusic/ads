@@ -36,6 +36,14 @@ target_link_libraries(your-project ads::ads)
 
 Or if not using CMake, simply copy+paste the headers into your project.
 
+## Extra configuration
+You can override `ADS_ASSERT` before including `ads.hpp` to have the library use a different assertion macro:
+```c++
+#define ADS_ASSERT(x) MY_ASSERT(x)
+#include <ads.hpp>
+```
+By default `<cassert>` is used.
+
 ## Types
 
 *`template <uint64_t channel_count, uint64_t frame_count>`* *`ads::data`*
@@ -124,7 +132,7 @@ Although their types are different, the same interface (more or less) is provide
 - `read()` : for reading audio data from the storage
 
 ## Madronalib extension
-If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some extension functions:
+If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some utilities for interacting with `ml::DSPVector`, `ml::DSPVectorArray`, and `ml::DSPVectorDynamic`:
 ```c++
 #include <ads-ml.hpp>
 ```
