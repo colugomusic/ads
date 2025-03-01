@@ -16,7 +16,7 @@ If you are like me then you have probably written multiple variations of this. T
 - Channel count known at compile time, but dynamic number of frames (as above.)
 
 `std::vector<std::array<float, frame_count>>`
-- Frame count known at compile time, but dynamic number of channels.
+- Frame count known at compile time, but dynamic number of channels (rare.)
 
 `std::array<std::array<float, frame_count>, channel_count>`
 - Both channel count and frame count known at compile time.
