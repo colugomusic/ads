@@ -139,7 +139,7 @@ Although their types are different, the same interface (more or less) is provide
 - `at()` : return individual frames (by reference), or underlying channel buffers
 - `write()` : for writing audio data to the storage
 - `read()` : for reading audio data from the storage
-- `data()` : access the raw float* buffers
+- `data()` : access the raw `float*` buffers
 
 ## Reading and writing audio data
 
