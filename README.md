@@ -212,6 +212,24 @@ data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::fra
 });
 ```
 
+This will write ones to the first 100 frames:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write(ads::frame_count{100}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 1.0f);
+  return frame_count;
+});
+```
+
+This will write ones to frames 50-99:
+```c++
+auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+data.write(ads::frame_idx{50}, ads::frame_count{50}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+  std::fill(buffer, buffer + frame_count.value, 1.0f);
+  return frame_count;
+});
+```
+
 ## Madronalib extension
 If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some utilities for interacting with `ml::DSPVector`, `ml::DSPVectorArray`, and `ml::DSPVectorDynamic`:
 ```c++
