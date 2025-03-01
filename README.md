@@ -1,5 +1,20 @@
 # ads
-This is a header-only c++20 library for in-memory audio data storage.
+This is a header-only c++20 library for storing audio data in memory.
+
+If you write audio code you have probably written a data structure that looks something like this at some point:
+```c++
+template <size_t channel_count>
+struct audio_data {
+  std::array<std::vector<float>, channel_count> frames;
+};
+```
+If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the buffer are known at compile time:
+- Channel count known at compile time, but dynamic number of frames (as above): `std::array<std::vector<float>, channel_count>`
+- Frame count known at compile time, but dynamic number of channels: `std::vector<std::array<float, frame_count>>`
+- Both channel count and frame count known at compile time: `std::array<std::array<float, frame_count>, channel_count>`
+- Dynamic number of channels and frames: `std::vector<std::vector<float>>`
+
+This library consolidates all these variations into one consistent interface, and provides utilities for reading and writing the data, iterating over multi-channel data frame-by-frame, and interleaving operations.
 
 ## CMake
 After cloning you can use the library in your CMake project like this:
@@ -10,7 +25,38 @@ target_link_libraries(your-project ads::ads)
 
 Or if not using CMake, simply copy+paste the headers into your project.
 
-## Usage
+## Types
+
+*`template <uint64_t channel_count, uint64_t frame_count>`* *`ads::data`*
+- Main audio storage type. The underlying storage type depends on the template arguments.
+- `ads::DYNAMIC_EXTENT` can be used for either `channel_count` or `frame_count`, or both.
+- `ads::DYNAMIC_EXTENT` means the count can be specified at runtime (and the `resize()` function will be available for that dimension.)
+
+*`template <uint64_t frame_count>`* *`ads::mono`*
+- 1 channel of a compile-time-known number of frames (unless `DYNAMIC_EXTENT` is specified.)
+- An alias for `ads::data<1, frame_count>`.
+
+*`template <uint64_t frame_count>`* *`ads::stereo`*
+- 2 channels of a compile-time-known number of frames (unless `DYNAMIC_EXTENT` is specified.)
+- An alias for `ads::data<2, frame_count>`.
+
+*`ads::dynamic_mono`*
+- 1 channel of a dynamic number of frames.
+- An alias for `ads::data<1, ads::DYNAMIC_EXTENT>`.
+
+*`ads::dynamic_stereo`*
+- 2 channels of a dynamic number of frames.
+- An alias for `ads::data<2, ads::DYNAMIC_EXTENT>`.
+
+*`ads::fully_dynamic`*
+- A dynamic number of channels and frames.
+- An alias for `ads::data<ads::DYNAMIC_EXTENT, ads::DYNAMIC_EXTENT>`.
+
+*`ads::interleaved`*
+- A wrapper around `ads::dynamic_mono` intended to be used for interleaved audio channel data.
+- The channel count and frame count are specified at runtime and the total number of required underlying frames is calculated for you.
+
+## Usage Examples
 ```c++
 // Mono data
 // Frame count known at runtime
@@ -67,7 +113,7 @@ Although their types are different, the same interface (more or less) is provide
 - `read()` : for reading audio data from the storage
 
 ## Madronalib extension
-If you use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is an extra header with some extension functions:
+If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some extension functions:
 ```c++
 #include <ads-ml.hpp>
 ```
