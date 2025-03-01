@@ -117,7 +117,7 @@ auto data2 = ads::make<2, 64>();
 auto data3 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
 
 // 10,000 frames of interleaved stereo data (therefore the underlying buffer is a single channel of 20,000 frames.)
-auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000});
+auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000}};
 
 // Convert from interleaved to multi-channel
 ads::deinterleave(interleaved, data3.begin());
