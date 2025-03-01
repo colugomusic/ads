@@ -113,7 +113,7 @@ Although their types are different, the same interface (more or less) is provide
 - `read()` : for reading audio data from the storage
 
 ## Madronalib extension
-If you use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some extension functions:
+If you happen to use [Madronalib](https://github.com/madronalabs/madronalib) in your project there is [an extra header](include/ads/ads-ml.hpp) with some extension functions:
 ```c++
 #include <ads-ml.hpp>
 ```
