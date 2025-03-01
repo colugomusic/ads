@@ -126,7 +126,7 @@ ads::deinterleave(interleaved, data3.begin());
 ads::interleave(data3, interleaved.begin());
 
 // You can also just use any old range of floats for interleaved data
-auto buffer = std::vector<float>{20000};
+auto buffer = std::vector<float>(20000, 0.0f);
 ads::interleave(data3, buffer.begin());
 ads::deinterleave(buffer, data3.begin());
 ```
