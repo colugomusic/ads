@@ -8,6 +8,7 @@
 #include <limits>
 #include <ranges>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 #ifndef ADS_ASSERT
