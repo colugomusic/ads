@@ -10,7 +10,7 @@ struct audio_data {
   std::array<std::vector<float>, channel_count> frames;
 };
 ```
-If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the buffer are known at compile time:
+If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the storage are known at compile time:
 
 `std::array<std::vector<float>, channel_count>`
 - Channel count known at compile time, but dynamic number of frames (as above.)
