@@ -193,8 +193,8 @@ This will write zeros to the first channel, and ones to the second channel:
 ```c++
 auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
 data.write([](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
-  if (ch == 0) { std::fill(buffer, buffer + frame_count.value, 0.0f); }
-  else         { std::fill(buffer, buffer + frame_count.value, 1.0f); }
+  if (ch.value == 0) { std::fill(buffer, buffer + frame_count.value, 0.0f); }
+  else               { std::fill(buffer, buffer + frame_count.value, 1.0f); }
   return frame_count;
 });
 ```
