@@ -205,20 +205,20 @@ concept is_multi_channel_write_fn = requires(Fn fn, float* buffer, channel_idx c
 };
 
 template <typename Fn>
-concept is_mono_read_fn = requires(Fn fn, const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+concept is_single_channel_read_fn = requires(Fn fn, const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
 template <typename Fn>
-concept is_mono_write_fn = requires(Fn fn, float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+concept is_single_channel_write_fn = requires(Fn fn, float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
-template <typename Fn> concept is_read_fn  = is_mono_read_fn<Fn> || is_multi_channel_read_fn<Fn>;
-template <typename Fn> concept is_write_fn = is_mono_write_fn<Fn> || is_multi_channel_write_fn<Fn>;
+template <typename Fn> concept is_read_fn  = is_single_channel_read_fn<Fn> || is_multi_channel_read_fn<Fn>;
+template <typename Fn> concept is_write_fn = is_single_channel_write_fn<Fn> || is_multi_channel_write_fn<Fn>;
 
 template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_mono_read_fn<ReadFn>
+	requires is_single_channel_read_fn<ReadFn>
 auto read(const storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	ADS_ASSERT (start.value <= SANE_NUMBER_OF_FRAMES && "Insane frame start!");
 	const auto& channel = at(st, ch);
@@ -240,6 +240,12 @@ auto read(const storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::fra
 }
 
 template <uint64_t Chs, uint64_t Frs, typename ReadFn>
+	requires is_single_channel_read_fn<ReadFn> && is_mono_data<Chs>
+auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
+	return read(st, channel_idx{0}, start, frame_count, read_fn);
+}
+
+template <uint64_t Chs, uint64_t Frs, typename ReadFn>
 	requires is_multi_channel_read_fn<ReadFn>
 auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	auto frames_read = ads::frame_count{0};
@@ -252,7 +258,7 @@ auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_c
 }
 
 template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_mono_write_fn<WriteFn>
+	requires is_single_channel_write_fn<WriteFn>
 auto write(storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	ADS_ASSERT (start.value <= SANE_NUMBER_OF_FRAMES && "Insane frame start!");
 	auto& channel = at(st, ch);
@@ -274,7 +280,7 @@ auto write(storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_co
 }
 
 template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_mono_write_fn<WriteFn> && is_mono_data<Chs>
+	requires is_single_channel_write_fn<WriteFn> && is_mono_data<Chs>
 auto write(storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	return write(st, channel_idx{0}, start, frame_count, write_fn);
 }
@@ -461,50 +467,74 @@ struct impl {
 		detail::set(st_, ch, f, value);
 	}
 	template <typename ReadFn>
-		requires detail::is_multi_channel_read_fn<ReadFn>
+	auto read(ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, frame_idx{0}, get_frame_count(), read_fn);
+	}
+	template <typename ReadFn>
+	auto read(frame_idx start, ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, start, get_frame_count(), read_fn);
+	}
+	template <typename ReadFn>
+	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, frame_idx{0}, n, read_fn);
+	}
+	template <typename ReadFn>
 	auto read(frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, start, n, read_fn);
 	}
 	template <typename ReadFn>
-		requires detail::is_multi_channel_read_fn<ReadFn>
-	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
-		return read(frame_idx{0}, n, read_fn);
+	auto read(channel_idx ch, ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, ch, frame_idx{0}, get_frame_count(), read_fn);
 	}
 	template <typename ReadFn>
-		requires detail::is_mono_read_fn<ReadFn>
+	auto read(channel_idx ch, frame_idx start, ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, ch, start, get_frame_count(), read_fn);
+	}
+	template <typename ReadFn>
+	auto read(channel_idx ch, frame_count n, ReadFn read_fn) const -> frame_count {
+		return detail::read(st_, ch, frame_idx{0}, n, read_fn);
+	}
+	template <typename ReadFn>
 	auto read(channel_idx ch, frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, start, n, read_fn);
-	}
-	template <typename ReadFn>
-		requires detail::is_mono_read_fn<ReadFn>
-	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
-		return read(channel_idx{0}, frame_idx{0}, n, read_fn);
 	}
 	auto write(frame_idx start, const impl<Chs, Frs>& data) -> frame_count {
 		return detail::write(st_, start, data.get_frame_count(), data.st_);
 	}
 	auto write(const impl<Chs, Frs>& data) -> frame_count {
-		return write(frame_idx{0}, data);
+		return detail::write(st_, frame_idx{0}, data.get_frame_count(), data.st_);
 	}
 	template <typename WriteFn>
-		requires detail::is_write_fn<WriteFn>
+	auto write(WriteFn write_fn) -> frame_count {
+		return detail::write(st_, frame_idx{0}, get_frame_count(), write_fn);
+	}
+	template <typename WriteFn>
+	auto write(frame_count n, WriteFn write_fn) -> frame_count {
+		return detail::write(st_, frame_idx{0}, n, write_fn);
+	}
+	template <typename WriteFn>
+	auto write(frame_idx start, WriteFn write_fn) -> frame_count {
+		return detail::write(st_, start, get_frame_count(), write_fn);
+	}
+	template <typename WriteFn>
 	auto write(frame_idx start, frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, start, n, write_fn);
 	}
 	template <typename WriteFn>
-		requires detail::is_write_fn<WriteFn>
-	auto write(frame_count n, WriteFn write_fn) -> frame_count {
-		return write(frame_idx{0}, n, write_fn);
+	auto write(channel_idx ch, WriteFn write_fn) -> frame_count {
+		return detail::write(st_, ch, frame_idx{0}, get_frame_count(), write_fn);
 	}
 	template <typename WriteFn>
-		requires detail::is_mono_write_fn<WriteFn>
+	auto write(channel_idx ch, frame_count n, WriteFn write_fn) -> frame_count {
+		return detail::write(st_, ch, frame_idx{0}, n, write_fn);
+	}
+	template <typename WriteFn>
+	auto write(channel_idx ch, frame_idx start, WriteFn write_fn) -> frame_count {
+		return detail::write(st_, ch, start, get_frame_count(), write_fn);
+	}
+	template <typename WriteFn>
 	auto write(channel_idx ch, frame_idx start, frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, ch, start, n, write_fn);
-	}
-	template <typename WriteFn>
-		requires detail::is_mono_write_fn<WriteFn>
-	auto write(channel_idx ch, frame_count n, WriteFn write_fn) -> frame_count {
-		return write(ch, frame_idx{0}, n, write_fn);
 	}
 private:
 	alignas(16) storage<Chs, Frs> st_;
