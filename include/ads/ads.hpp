@@ -246,7 +246,7 @@ auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_c
 }
 
 template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_multi_channel_read_fn<ReadFn>
+	requires ((is_single_channel_read_fn<ReadFn> && !is_mono_data<Chs>) || is_multi_channel_read_fn<ReadFn>)
 auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	auto frames_read = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {
@@ -286,7 +286,7 @@ auto write(storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count,
 }
 
 template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_multi_channel_write_fn<WriteFn>
+	requires ((is_single_channel_write_fn<WriteFn> && !is_mono_data<Chs>) || is_multi_channel_write_fn<WriteFn>)
 auto write(storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	auto frames_written = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {

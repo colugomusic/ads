@@ -32,3 +32,69 @@ TEST_CASE("mono dynamic") {
 	REQUIRE (st.get_frame_count() == ads::frame_count{512});
 	write_read_iota(&st, ads::channel_idx{0});
 }
+
+TEST_CASE("write examples") {
+	auto data0 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data0.write([](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 1.0f);
+		return frame_count;
+	});
+	auto data1 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data1.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 1.0f);
+		return frame_count;
+	});
+	auto data2 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data2.write([](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+		if (ch.value == 0) { std::fill(buffer, buffer + frame_count.value, 0.0f); }
+		else               { std::fill(buffer, buffer + frame_count.value, 1.0f); }
+		return frame_count;
+	});
+	auto data3 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data3.write(ads::channel_idx{0}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 0.0f);
+		return frame_count;
+	});
+	auto data4 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data4.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 1.0f);
+		return frame_count;
+	});
+	data0.read([](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			CHECK (buffer[i] == doctest::Approx(1.0f));
+		}
+		return frame_count;
+	});
+	data1.read(ads::channel_idx{1}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			CHECK (buffer[i] == doctest::Approx(1.0f));
+		}
+		return frame_count;
+	});
+	data2.read([](const float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+		if (ch.value == 0) {
+			for (auto i = 0; i < frame_count.value; ++i) {
+				CHECK (buffer[i] == doctest::Approx(0.0f));
+			}
+		}
+		else {
+			for (auto i = 0; i < frame_count.value; ++i) {
+				CHECK (buffer[i] == doctest::Approx(1.0f));
+			}
+		}
+		return frame_count;
+	});
+	data3.read(ads::channel_idx{0}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			CHECK (buffer[i] == doctest::Approx(0.0f));
+		}
+		return frame_count;
+	});
+	data4.read(ads::channel_idx{1}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			CHECK (buffer[i] == doctest::Approx(1.0f));
+		}
+		return frame_count;
+	});
+}
