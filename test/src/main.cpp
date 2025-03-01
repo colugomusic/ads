@@ -142,6 +142,16 @@ TEST_CASE("write examples") {
 		std::fill(buffer, buffer + frame_count.value, 1.0f);
 		return frame_count;
 	});
+	auto data5 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data5.write(ads::frame_count{100}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 1.0f);
+		return frame_count;
+	});
+	auto data6 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+	data6.write(ads::frame_idx{50}, ads::frame_count{50}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		std::fill(buffer, buffer + frame_count.value, 1.0f);
+		return frame_count;
+	});
 	data0.read([](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
 		for (auto i = 0; i < frame_count.value; ++i) {
 			CHECK (buffer[i] == doctest::Approx(1.0f));
@@ -176,6 +186,21 @@ TEST_CASE("write examples") {
 	data4.read(ads::channel_idx{1}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
 		for (auto i = 0; i < frame_count.value; ++i) {
 			CHECK (buffer[i] == doctest::Approx(1.0f));
+		}
+		return frame_count;
+	});
+	data5.read([](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			if (i < 100) { CHECK (buffer[i] == doctest::Approx(1.0f)); }
+			else         { CHECK (buffer[i] == doctest::Approx(0.0f)); }
+		}
+		return frame_count;
+	});
+	data6.read([](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; ++i) {
+			if (i < 50)       { CHECK (buffer[i] == doctest::Approx(0.0f)); }
+			else if (i < 100) { CHECK (buffer[i] == doctest::Approx(1.0f)); }
+			else              { CHECK (buffer[i] == doctest::Approx(0.0f)); }
 		}
 		return frame_count;
 	});
