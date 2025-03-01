@@ -26,6 +26,7 @@ This library consolidates all these variations into one consistent interface, an
 #include <boost/align/aligned_allocator.hpp>
 #include <boost/container/small_vector.hpp>
 ```
+If using CMake then this will happen automatically as long as `find_package(Boost COMPONENTS headers REQUIRED)` succeeds.
 
 ## CMake
 After cloning you can use the library in your CMake project like this:
