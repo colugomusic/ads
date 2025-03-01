@@ -11,10 +11,18 @@ struct audio_data {
 };
 ```
 If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the buffer are known at compile time:
-- Channel count known at compile time, but dynamic number of frames (as above): `std::array<std::vector<float>, channel_count>`
-- Frame count known at compile time, but dynamic number of channels: `std::vector<std::array<float, frame_count>>`
-- Both channel count and frame count known at compile time: `std::array<std::array<float, frame_count>, channel_count>`
-- Dynamic number of channels and frames: `std::vector<std::vector<float>>`
+
+`std::array<std::vector<float>, channel_count>`
+- Channel count known at compile time, but dynamic number of frames (as above.)
+
+`std::vector<std::array<float, frame_count>>`
+- Frame count known at compile time, but dynamic number of channels.
+
+`std::array<std::array<float, frame_count>, channel_count>`
+- Both channel count and frame count known at compile time.
+
+`std::vector<std::vector<float>>`
+- Dynamic number of channels and frames.
 
 This library consolidates all these variations into one consistent interface, and provides utilities for reading and writing the data, iterating over multi-channel data frame-by-frame, and interleaving operations.
 
@@ -126,11 +134,12 @@ Although their types are different, the same interface (more or less) is provide
 - `get_channel_count()`
 - `get_frame_count()`
 - `begin()`/`end()` : returns specialized iterators for iterating frame-by-frame (even though channels are stored in separate buffers)
-- `resize()` : resize the storage (channel count or frame count)
-- `set()` : set frame values
-- `at()` : return frames, or underlying channel buffers
+- `resize()` : resize the storage (channel count or frame count, or both)
+- `set()` : set individual frame values
+- `at()` : return individual frames (by reference), or underlying channel buffers
 - `write()` : for writing audio data to the storage
 - `read()` : for reading audio data from the storage
+- `data()` : access the raw float* buffers
 
 ## Reading and writing audio data
 
