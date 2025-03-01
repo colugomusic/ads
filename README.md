@@ -1,6 +1,8 @@
 # ads
 This is a header-only c++20 library for storing audio data in memory.
 
+## Motivation
+
 If you write audio code you have probably written a data structure that looks something like this at some point:
 ```c++
 template <size_t channel_count>
@@ -15,6 +17,15 @@ If you are like me then you have probably written multiple variations of this. T
 - Dynamic number of channels and frames: `std::vector<std::vector<float>>`
 
 This library consolidates all these variations into one consistent interface, and provides utilities for reading and writing the data, iterating over multi-channel data frame-by-frame, and interleaving operations.
+
+## Requirements
+
+- c++20 or above
+- This library make use of `aligned_allocator` and `small_vector` from [Boost](https://www.boost.org/) so you just need to make sure these are available in your include paths:
+```c++
+#include <boost/align/aligned_allocator.hpp>
+#include <boost/container/small_vector.hpp>
+```
 
 ## CMake
 After cloning you can use the library in your CMake project like this:
