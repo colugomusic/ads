@@ -117,7 +117,7 @@ auto data2 = ads::make<2, 64>();
 auto data3 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
 
 // 10,000 frames of interleaved stereo data (therefore the underlying buffer is a single channel of 20,000 frames.)
-auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000});
+auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000}};
 
 // Convert from interleaved to multi-channel
 ads::deinterleave(interleaved, data3.begin());
@@ -126,7 +126,7 @@ ads::deinterleave(interleaved, data3.begin());
 ads::interleave(data3, interleaved.begin());
 
 // You can also just use any old range of floats for interleaved data
-auto buffer = std::vector<float>{20000};
+auto buffer = std::vector<float>(20000, 0.0f);
 ads::interleave(data3, buffer.begin());
 ads::deinterleave(buffer, data3.begin());
 ```
