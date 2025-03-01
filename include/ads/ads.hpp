@@ -132,15 +132,22 @@ auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<DYNAMIC_EXTE
 	return frame;
 }
 
-template <typename Storage> [[nodiscard]] constexpr
+template <typename Storage>
+	requires (Storage::CHANNEL_COUNT == DYNAMIC_EXTENT)
+[[nodiscard]]
 auto get_channel_count(const Storage& st) -> channel_count {
 	return {st.size()};
 }
 
-template <typename Storage> [[nodiscard]]
+template <typename Storage>
+	requires (Storage::FRAME_COUNT == DYNAMIC_EXTENT)
+[[nodiscard]]
 auto get_frame_count(const Storage& st) -> frame_count {
 	return st.empty() ? frame_count{0} : frame_count{st.front().size()};
 }
+
+template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> channel_count { return {Storage::CHANNEL_COUNT}; }
+template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
 
 template <typename Storage> [[nodiscard]]
 auto data(Storage& st, channel_idx ch) -> float* {
@@ -399,8 +406,16 @@ struct impl {
 	impl& operator=(impl&&) noexcept = default;
 	impl(const impl&)                = default;
 	impl(impl&&) noexcept            = default;
-	[[nodiscard]] constexpr auto get_channel_count() const -> channel_count   { return detail::get_channel_count(st_); }
-	[[nodiscard]] auto get_frame_count() const -> frame_count                 { return detail::get_frame_count(st_); }
+	[[nodiscard]] constexpr
+	auto get_channel_count() const -> channel_count {
+		if constexpr (Chs == DYNAMIC_EXTENT) { return detail::get_channel_count(st_); }
+		else                                 { return {Chs}; }
+	}
+	[[nodiscard]] constexpr
+	auto get_frame_count() const -> frame_count {
+		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
+		else                                 { return {Frs}; }
+	}
 	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<Frs>&             { return detail::at(st_, ch); }
 	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<Frs>& { return detail::at(st_, ch); }
 	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&              { return detail::at(st_, ch, f); }
@@ -451,9 +466,19 @@ struct impl {
 		return detail::read(st_, start, n, read_fn);
 	}
 	template <typename ReadFn>
+		requires detail::is_multi_channel_read_fn<ReadFn>
+	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
+		return read(frame_idx{0}, n, read_fn);
+	}
+	template <typename ReadFn>
 		requires detail::is_mono_read_fn<ReadFn>
 	auto read(channel_idx ch, frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, start, n, read_fn);
+	}
+	template <typename ReadFn>
+		requires detail::is_mono_read_fn<ReadFn>
+	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
+		return read(channel_idx{0}, frame_idx{0}, n, read_fn);
 	}
 	auto write(frame_idx start, const impl<Chs, Frs>& data) -> frame_count {
 		return detail::write(st_, start, data.get_frame_count(), data.st_);
@@ -524,8 +549,8 @@ auto make(ads::channel_count channel_count) -> data<DYNAMIC_EXTENT, Frs> {
 	return {std::move(st)};
 }
 
-template <channel_count Chs, frame_count Frs> [[nodiscard]]
-auto make() -> data<DYNAMIC_EXTENT, DYNAMIC_EXTENT> {
+template <uint64_t Chs, uint64_t Frs> [[nodiscard]]
+auto make() -> data<Chs, Frs> {
 	return {};
 }
 
