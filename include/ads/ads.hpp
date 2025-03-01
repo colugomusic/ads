@@ -166,6 +166,11 @@ auto resize(storage<Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count) -> v
 	}
 }
 
+template <uint64_t Frs> [[nodiscard]]
+auto resize(storage<DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count) -> void {
+	st.resize(channel_count.value);
+}
+
 template <uint64_t Chs, uint64_t Frs> [[nodiscard]]
 auto set(storage<Chs, Frs>& st, channel_idx channel, frame_idx frame, float value) -> void {
 	st.at(channel.value).at(frame.value) = value;
@@ -419,6 +424,11 @@ struct impl {
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
 		detail::resize(st_, channel_count, frame_count);
+	}
+	auto resize(ads::channel_count channel_count) -> void
+		requires (Chs == DYNAMIC_EXTENT)
+	{
+		detail::resize(st_, channel_count);
 	}
 	auto resize(ads::frame_count frame_count) -> void
 		requires (Frs == DYNAMIC_EXTENT)

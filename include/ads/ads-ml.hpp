@@ -35,6 +35,44 @@ auto read(const data<Chs, Frs>& src, ml::DSPVectorDynamic* dest) -> frame_count 
 
 template <uint64_t Chs, uint64_t Frs>
 	requires (detail::is_mono_data<Chs>)
+auto read(const data<Chs, Frs>& src, frame_idx start, ml::DSPVector* dst) -> frame_count {
+	return src.read(start, {kFloatsPerDSPVector}, [dst](const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+		return copy(buffer, dst, frame_count);
+	});
+}
+
+template <uint64_t Chs, uint64_t Frs>
+	requires (detail::is_mono_data<Chs>)
+auto read(const data<Chs, Frs>& src, ml::DSPVector* dst) -> frame_count {
+	return read(src, frame_idx{0}, dst);
+}
+
+template <uint64_t Chs, uint64_t Frs>
+auto read(const data<Chs, Frs>& src, channel_idx ch, frame_idx start, ml::DSPVector* dst) -> frame_count {
+	return src.read(ch, start, {kFloatsPerDSPVector}, [dst](const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+		return copy(buffer, dst, frame_count);
+	});
+}
+
+template <uint64_t Chs, uint64_t Frs>
+auto read(const data<Chs, Frs>& src, channel_idx ch, ml::DSPVector* dst) -> frame_count {
+	return read(src, ch, frame_idx{0}, dst);
+}
+
+template <uint64_t Chs, uint64_t Frs>
+auto write(data<Chs, Frs>* dst, frame_idx start, const ml::DSPVectorDynamic& src) -> frame_count {
+	return dst->write(start, {kFloatsPerDSPVector}, [&src](float* buffer, channel_idx ch, frame_idx frame_start, ads::frame_count frame_count) {
+		return copy(src.operator[](int(ch.value)), buffer, frame_count);
+	});
+}
+
+template <uint64_t Chs, uint64_t Frs>
+auto write(data<Chs, Frs>* dst, const ml::DSPVectorDynamic& src) -> frame_count {
+	return write(dst, frame_idx{0}, src);
+}
+
+template <uint64_t Chs, uint64_t Frs>
+	requires (detail::is_mono_data<Chs>)
 auto write(data<Chs, Frs>* dst, frame_idx start, const ml::DSPVector& signal) -> frame_count {
 	dst->write(start, {kFloatsPerDSPVector}, [&signal](float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return copy(signal, buffer, frame_count);
