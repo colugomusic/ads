@@ -10,13 +10,13 @@ struct audio_data {
   std::array<std::vector<float>, channel_count> frames;
 };
 ```
-If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the buffer are known at compile time:
+If you are like me then you have probably written multiple variations of this. There are four obvious variations depending on which dimensions of the storage are known at compile time:
 
 `std::array<std::vector<float>, channel_count>`
 - Channel count known at compile time, but dynamic number of frames (as above.)
 
 `std::vector<std::array<float, frame_count>>`
-- Frame count known at compile time, but dynamic number of channels.
+- Frame count known at compile time, but dynamic number of channels (rare.)
 
 `std::array<std::array<float, frame_count>, channel_count>`
 - Both channel count and frame count known at compile time.
@@ -36,7 +36,7 @@ This library consolidates all these variations into one consistent interface, an
 ```
 If using CMake then this will happen automatically as long as `find_package(Boost REQUIRED COMPONENTS headers CONFIG)` succeeds.
 
-## CMake
+## CMake (3.23+)
 After cloning you can use the library in your CMake project like this:
 ```cmake
 add_subdirectory("/path/to/ads")
