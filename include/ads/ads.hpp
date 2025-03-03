@@ -159,7 +159,7 @@ auto data(const Storage& st, channel_idx ch) -> const float* {
 	return st.at(ch.value).data();
 }
 
-[[nodiscard]] inline
+inline
 auto resize(storage<DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count channel_count, ads::frame_count frame_count) -> void {
 	st.resize(channel_count.value);
 	for (auto& channel : st) {
@@ -167,19 +167,19 @@ auto resize(storage<DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count chan
 	}
 }
 
-template <uint64_t Chs> [[nodiscard]]
+template <uint64_t Chs>
 auto resize(storage<Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count) -> void {
 	for (auto& channel : st) {
 		channel.resize(frame_count.value);
 	}
 }
 
-template <uint64_t Frs> [[nodiscard]]
+template <uint64_t Frs>
 auto resize(storage<DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count) -> void {
 	st.resize(channel_count.value);
 }
 
-template <uint64_t Chs, uint64_t Frs> [[nodiscard]]
+template <uint64_t Chs, uint64_t Frs>
 auto set(storage<Chs, Frs>& st, channel_idx channel, frame_idx frame, float value) -> void {
 	st.at(channel.value).at(frame.value) = value;
 }
