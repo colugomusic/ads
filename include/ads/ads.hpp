@@ -186,7 +186,7 @@ auto set(storage<Chs, Frs>& st, channel_idx channel, frame_idx frame, float valu
 
 template <uint64_t Chs, uint64_t Frs>
 auto set(storage<Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Chs> value) -> void {
-	for (uint64_t c = 0; c < Chs.value; c++) {
+	for (uint64_t c = 0; c < Chs; c++) {
 		st[c].at(frame_idx.value) = value[c];
 	}
 }
