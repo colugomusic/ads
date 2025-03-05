@@ -5,16 +5,12 @@
 #include <boost/align/aligned_allocator.hpp>
 #include <boost/container/small_vector.hpp>
 #include <cmath>
+#include <format>
 #include <limits>
 #include <ranges>
 #include <span>
 #include <stdexcept>
 #include <vector>
-
-#ifndef ADS_ASSERT
-#include <cassert>
-#define ADS_ASSERT(x) assert(x)
-#endif
 
 namespace ads {
 
@@ -27,21 +23,21 @@ static constexpr auto DYNAMIC_EXTENT   = std::numeric_limits<uint64_t>::max();
 static constexpr auto DYNAMIC_CHANNELS = channel_count{DYNAMIC_EXTENT};
 static constexpr auto DYNAMIC_FRAMES   = frame_count{DYNAMIC_EXTENT};
 
-template <uint64_t Chs> struct frame                 { using type = std::array<float, Chs>; };
-template <>             struct frame<DYNAMIC_EXTENT> { using type = boost::container::small_vector<float, 2>; };
-template <uint64_t Chs = DYNAMIC_EXTENT> using frame_t = typename frame<Chs>::type;
+template <typename ValueType, uint64_t Chs> struct frame                            { using type = std::array<ValueType, Chs>; };
+template <typename ValueType>               struct frame<ValueType, DYNAMIC_EXTENT> { using type = boost::container::small_vector<ValueType, 2>; };
+template <typename ValueType, uint64_t Chs = DYNAMIC_EXTENT> using frame_t = typename frame<ValueType, Chs>::type;
 
-template <uint64_t Chs, bool Const> struct frame_ref;
-template <>                         struct frame_ref<DYNAMIC_EXTENT, false> { using type = boost::container::small_vector<float*, 2>; };
-template <>                         struct frame_ref<DYNAMIC_EXTENT, true>  { using type = boost::container::small_vector<const float*, 2>; };
-template <uint64_t Chs>             struct frame_ref<Chs, false>            { using type = std::array<float*, Chs>; };
-template <uint64_t Chs>             struct frame_ref<Chs, true>             { using type = std::array<const float*, Chs>; };
-template <uint64_t Chs, bool Const> using frame_ref_t = typename frame_ref<Chs, Const>::type;
+template <typename ValueType, uint64_t Chs, bool Const> struct frame_ref;
+template <typename ValueType>                           struct frame_ref<ValueType, DYNAMIC_EXTENT, false> { using type = boost::container::small_vector<ValueType*, 2>; };
+template <typename ValueType>                           struct frame_ref<ValueType, DYNAMIC_EXTENT, true>  { using type = boost::container::small_vector<const ValueType*, 2>; };
+template <typename ValueType, uint64_t Chs>             struct frame_ref<ValueType, Chs, false>            { using type = std::array<ValueType*, Chs>; };
+template <typename ValueType, uint64_t Chs>             struct frame_ref<ValueType, Chs, true>             { using type = std::array<const ValueType*, Chs>; };
+template <typename ValueType, uint64_t Chs, bool Const> using frame_ref_t = typename frame_ref<ValueType, Chs, Const>::type;
 
-template <typename T>
+template <typename T, typename ValueType>
 concept is_frame_ref =
-	std::same_as<std::ranges::range_value_t<T>, float*> ||
-	std::same_as<std::ranges::range_value_t<T>, const float*>;
+	std::same_as<std::ranges::range_value_t<T>, ValueType*> ||
+	std::same_as<std::ranges::range_value_t<T>, const ValueType*>;
 
 namespace detail {
 
@@ -50,27 +46,28 @@ namespace detail {
 static constexpr auto SANE_NUMBER_OF_CHANNELS = 1024ULL;
 static constexpr auto SANE_NUMBER_OF_FRAMES   = 44100ULL * 604800ULL; // 1 week of audio at 44100 Hz
 
-template <uint64_t Frs> struct channel_data                 { using type = std::array<float, Frs>; };
-template <>             struct channel_data<DYNAMIC_EXTENT> { using type = std::vector<float, boost::alignment::aligned_allocator<float, 16>>; };
-template <uint64_t Frs> using channel_data_t = channel_data<Frs>::type;
+template <typename ValueType, uint64_t Frs> struct channel_data                            { using type = std::array<ValueType, Frs>; };
+template <typename ValueType>               struct channel_data<ValueType, DYNAMIC_EXTENT> { using type = std::vector<ValueType, boost::alignment::aligned_allocator<ValueType, 16>>; };
+template <typename ValueType, uint64_t Frs> using channel_data_t = channel_data<ValueType, Frs>::type;
 
 template <uint64_t Chs, typename ChannelData> struct channels                              { using type = std::array<ChannelData, Chs>; };
 template <typename ChannelData>               struct channels<DYNAMIC_EXTENT, ChannelData> { using type = std::vector<ChannelData>; };
 template <uint64_t Chs, typename ChannelData> using channels_t = typename channels<Chs, ChannelData>::type;
 
-template <uint64_t Chs, uint64_t Frs>
-struct storage : channels_t<Chs, channel_data_t<Frs>> {
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
+struct storage : channels_t<Chs, channel_data_t<ValueType, Frs>> {
 	static constexpr auto CHANNEL_COUNT = Chs;
 	static constexpr auto FRAME_COUNT   = Frs;
+	using value_type = ValueType;
 };
 
 template <typename Storage> [[nodiscard]]
-auto at(Storage& st, channel_idx channel) -> channel_data_t<Storage::FRAME_COUNT>& {
+auto at(Storage& st, channel_idx channel) -> channel_data_t<typename Storage::value_type, Storage::FRAME_COUNT>& {
 	return st.at(channel.value);
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(const Storage& st, channel_idx channel) -> const channel_data_t<Storage::FRAME_COUNT>& {
+auto at(const Storage& st, channel_idx channel) -> const channel_data_t<typename Storage::value_type, Storage::FRAME_COUNT>& {
 	return st.at(channel.value);
 }
 
@@ -93,7 +90,7 @@ auto at(const Storage& st, channel_idx channel, float frame) -> float {
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<Storage::CHANNEL_COUNT, false> {
+auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, false> {
 	frame_ref_t<Storage::CHANNEL_COUNT, false> frame;
 	for (uint64_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
 		frame[c] = &st[c].at(frame_idx.value);
@@ -102,7 +99,7 @@ auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<Storage::CHANNEL_C
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<Storage::CHANNEL_COUNT, true> {
+auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, true> {
 	frame_ref_t<Storage::CHANNEL_COUNT, true> frame;
 	for (uint64_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
 		frame[c] = &st[c].at(frame_idx.value);
@@ -113,8 +110,8 @@ auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<Storage::CHA
 template <typename Storage>
 	requires (Storage::CHANNEL_COUNT == DYNAMIC_EXTENT)
 [[nodiscard]]
-auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<DYNAMIC_EXTENT, false> {
-	frame_ref_t<DYNAMIC_EXTENT, false> frame;
+auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, DYNAMIC_EXTENT, false> {
+	frame_ref_t<typename Storage::value_type, DYNAMIC_EXTENT, false> frame;
 	std::ranges::transform(st, std::back_inserter(frame), [frame_idx](auto& channel) {
 		return &channel.at(frame_idx.value);
 	});
@@ -124,8 +121,8 @@ auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<DYNAMIC_EXTENT, fa
 template <typename Storage>
 	requires (Storage::CHANNEL_COUNT == DYNAMIC_EXTENT)
 [[nodiscard]]
-auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<DYNAMIC_EXTENT, true> {
-	frame_ref_t<DYNAMIC_EXTENT, true> frame;
+auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, DYNAMIC_EXTENT, true> {
+	frame_ref_t<typename Storage::value_type, DYNAMIC_EXTENT, true> frame;
 	std::ranges::transform(st, std::back_inserter(frame), [frame_idx](const auto& channel) {
 		return &channel.at(frame_idx.value);
 	});
@@ -159,33 +156,33 @@ auto data(const Storage& st, channel_idx ch) -> const float* {
 	return st.at(ch.value).data();
 }
 
-inline
-auto resize(storage<DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count channel_count, ads::frame_count frame_count) -> void {
+template <typename ValueType>
+auto resize(storage<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count channel_count, ads::frame_count frame_count) -> void {
 	st.resize(channel_count.value);
 	for (auto& channel : st) {
 		channel.resize(frame_count.value);
 	}
 }
 
-template <uint64_t Chs>
-auto resize(storage<Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count) -> void {
+template <typename ValueType, uint64_t Chs>
+auto resize(storage<ValueType, Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count) -> void {
 	for (auto& channel : st) {
 		channel.resize(frame_count.value);
 	}
 }
 
-template <uint64_t Frs>
-auto resize(storage<DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count) -> void {
+template <typename ValueType, uint64_t Frs>
+auto resize(storage<ValueType, DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count) -> void {
 	st.resize(channel_count.value);
 }
 
-template <uint64_t Chs, uint64_t Frs>
-auto set(storage<Chs, Frs>& st, channel_idx channel, frame_idx frame, float value) -> void {
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
+auto set(storage<ValueType, Chs, Frs>& st, channel_idx channel, frame_idx frame, float value) -> void {
 	st.at(channel.value).at(frame.value) = value;
 }
 
-template <uint64_t Chs, uint64_t Frs>
-auto set(storage<Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Chs> value) -> void {
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
+auto set(storage<ValueType, Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<ValueType, Chs> value) -> void {
 	for (uint64_t c = 0; c < Chs; c++) {
 		st[c].at(frame_idx.value) = value[c];
 	}
@@ -194,33 +191,45 @@ auto set(storage<Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Chs> value) ->
 template <uint64_t Chs>
 concept is_mono_data = Chs == 1;
 
-template <typename Fn>
-concept is_multi_channel_read_fn = requires(Fn fn, const float* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
+template <typename ValueType, typename Fn>
+concept is_multi_channel_read_fn = requires(Fn fn, const ValueType* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, channel, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
-template <typename Fn>
-concept is_multi_channel_write_fn = requires(Fn fn, float* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
+template <typename ValueType, typename Fn>
+concept is_multi_channel_write_fn = requires(Fn fn, ValueType* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, channel, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
-template <typename Fn>
-concept is_single_channel_read_fn = requires(Fn fn, const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+template <typename ValueType, typename Fn>
+concept is_single_channel_read_fn = requires(Fn fn, const ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
-template <typename Fn>
-concept is_single_channel_write_fn = requires(Fn fn, float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+template <typename ValueType, typename Fn>
+concept is_single_channel_write_fn = requires(Fn fn, ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
 };
 
-template <typename Fn> concept is_read_fn  = is_single_channel_read_fn<Fn> || is_multi_channel_read_fn<Fn>;
-template <typename Fn> concept is_write_fn = is_single_channel_write_fn<Fn> || is_multi_channel_write_fn<Fn>;
+template <typename ValueType, typename Fn>
+concept is_multi_channel_provider_fn = requires(Fn fn, channel_idx ch, frame_idx fr) {
+	{ fn(ch, fr) } -> std::same_as<ValueType>;
+};
 
-template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_single_channel_read_fn<ReadFn>
-auto read(const storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
-	ADS_ASSERT (start.value <= SANE_NUMBER_OF_FRAMES && "Insane frame start!");
+template <typename ValueType, typename Fn>
+concept is_single_channel_provider_fn = requires(Fn fn, frame_idx fr) {
+	{ fn(fr) } -> std::same_as<ValueType>;
+};
+
+template <typename ValueType, typename Fn> concept is_read_fn  = is_single_channel_read_fn<ValueType, Fn> || is_multi_channel_read_fn<ValueType, Fn>;
+template <typename ValueType, typename Fn> concept is_write_fn = is_single_channel_write_fn<ValueType, Fn> || is_multi_channel_write_fn<ValueType, Fn>;
+
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
+	requires is_single_channel_read_fn<ValueType, ReadFn>
+auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
+	if (start.value > SANE_NUMBER_OF_FRAMES) {
+		throw std::underflow_error{std::format("ads::detail::read() with frame start = {} is insane", start.value)};
+	}
 	const auto& channel = at(st, ch);
 	if (start.value >= channel.size()) {
 		return {0};
@@ -231,36 +240,40 @@ auto read(const storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::fra
 	return read_fn(channel.data() + start.value, start, frame_count);
 }
 
-template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_multi_channel_read_fn<ReadFn>
-auto read(const storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
+	requires is_multi_channel_read_fn<ValueType, ReadFn>
+auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	return read(st, ch, start, frame_count, [ch, read_fn](const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return read_fn(buffer, ch, frame_start, frame_count);
 	});
 }
 
-template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_single_channel_read_fn<ReadFn> && is_mono_data<Chs>
-auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
+	requires is_single_channel_read_fn<ValueType, ReadFn> && is_mono_data<Chs>
+auto read(const storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	return read(st, channel_idx{0}, start, frame_count, read_fn);
 }
 
-template <uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires ((is_single_channel_read_fn<ReadFn> && !is_mono_data<Chs>) || is_multi_channel_read_fn<ReadFn>)
-auto read(const storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
+	requires ((is_single_channel_read_fn<ValueType, ReadFn> && !is_mono_data<Chs>) || is_multi_channel_read_fn<ValueType, ReadFn>)
+auto read(const storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	auto frames_read = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {
 		const auto channel_frames_read = read(st, channel_idx{c}, start, frame_count, read_fn);
 		if (c == 0) { frames_read = channel_frames_read; }
-		else        { ADS_ASSERT (frames_read == channel_frames_read && "Frame count mismatch"); }
+		else if (frames_read != channel_frames_read) {
+			throw std::runtime_error{std::format("ads::detail::read() frame count mismatch ({} != {})", frames_read.value, channel_frames_read.value)};
+		}
 	}
 	return frames_read;
 }
 
-template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_single_channel_write_fn<WriteFn>
-auto write(storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
-	ADS_ASSERT (start.value <= SANE_NUMBER_OF_FRAMES && "Insane frame start!");
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
+	requires is_single_channel_write_fn<ValueType, WriteFn>
+auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
+	if (start.value > SANE_NUMBER_OF_FRAMES) {
+		throw std::underflow_error{std::format("ads::detail::write() with frame start = {} is insane", start.value)};
+	}
 	auto& channel = at(st, ch);
 	if (start.value >= channel.size()) {
 		return {0};
@@ -271,34 +284,36 @@ auto write(storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_co
 	return write_fn(channel.data() + start.value, start, frame_count);
 }
 
-template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_multi_channel_write_fn<WriteFn>
-auto write(storage<Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
+	requires is_multi_channel_write_fn<ValueType, WriteFn>
+auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	return write(st, ch, start, frame_count, [ch, write_fn](float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return write_fn(buffer, ch, frame_start, frame_count);
 	});
 }
 
-template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_single_channel_write_fn<WriteFn> && is_mono_data<Chs>
-auto write(storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
+	requires is_single_channel_write_fn<ValueType, WriteFn> && is_mono_data<Chs>
+auto write(storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	return write(st, channel_idx{0}, start, frame_count, write_fn);
 }
 
-template <uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires ((is_single_channel_write_fn<WriteFn> && !is_mono_data<Chs>) || is_multi_channel_write_fn<WriteFn>)
-auto write(storage<Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
+	requires ((is_single_channel_write_fn<ValueType, WriteFn> && !is_mono_data<Chs>) || is_multi_channel_write_fn<ValueType, WriteFn>)
+auto write(storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	auto frames_written = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {
 		const auto channel_frames_written = write(st, channel_idx{c}, start, frame_count, write_fn);
 		if (c == 0) { frames_written = channel_frames_written; }
-		else        { ADS_ASSERT (frames_written == channel_frames_written && "Frame count mismatch"); }
+		else if (frames_written != channel_frames_written) {
+			throw std::runtime_error{std::format("ads::detail::write() frame count mismatch ({} != {})", frames_written.value, channel_frames_written.value)};
+		}
 	}
 	return frames_written;
 }
 
-template <uint64_t Chs, uint64_t Frs>
-auto write(storage<Chs, Frs>& dest, frame_idx start, ads::frame_count frame_count, const storage<Chs, Frs>& src) -> ads::frame_count {
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
+auto write(storage<ValueType, Chs, Frs>& dest, frame_idx start, ads::frame_count frame_count, const storage<ValueType, Chs, Frs>& src) -> ads::frame_count {
 	return write(dest, start, frame_count, [&src](float* buffer, channel_idx ch, frame_idx frame_start, ads::frame_count frame_count) {
 		const auto& channel = at(src, ch);
 		std::copy_n(channel.begin(), frame_count.value, buffer);
@@ -306,14 +321,14 @@ auto write(storage<Chs, Frs>& dest, frame_idx start, ads::frame_count frame_coun
 	});
 }
 
-template <uint64_t Chs, uint64_t Frs, bool Const>
+template <typename ValueType, uint64_t Chs, uint64_t Frs, bool Const>
 struct frame_iterator_base {
 	using iterator_category = std::random_access_iterator_tag;
-	using value_type        = frame_ref_t<Chs, Const>;
+	using value_type        = frame_ref_t<ValueType, Chs, Const>;
 	using difference_type   = int64_t;
 	using pointer           = value_type*;
 	using reference         = value_type&;
-	using storage_type      = std::conditional_t<Const, const storage<Chs, Frs>, storage<Chs, Frs>>;
+	using storage_type      = std::conditional_t<Const, const storage<ValueType, Chs, Frs>, storage<ValueType, Chs, Frs>>;
 	storage_type* st = nullptr;
 	frame_idx frame  = {0};
 	frame_iterator_base() = default;
@@ -358,15 +373,14 @@ struct frame_iterator_base {
 	frame_iterator_base& operator++() { ++frame.value; return *this; }
 };
 
-template <uint64_t Chs, uint64_t Frs> using frame_iterator       = frame_iterator_base<Chs, Frs, false>;
-template <uint64_t Chs, uint64_t Frs> using const_frame_iterator = frame_iterator_base<Chs, Frs, true>;
+template <typename ValueType, uint64_t Chs, uint64_t Frs> using frame_iterator       = frame_iterator_base<ValueType, Chs, Frs, false>;
+template <typename ValueType, uint64_t Chs, uint64_t Frs> using const_frame_iterator = frame_iterator_base<ValueType, Chs, Frs, true>;
 
 } // namespace detail
 
 template <std::ranges::input_range Frames, typename OutputIterator>
 	requires
-		std::same_as<std::ranges::range_value_t<Frames>, float> &&
-		is_frame_ref<std::iter_value_t<OutputIterator>>
+		is_frame_ref<std::iter_value_t<OutputIterator>, std::ranges::range_value_t<Frames>>
 auto deinterleave(Frames&& input, OutputIterator output) -> void {
 	static auto channel_count = std::size(*output);
 	auto pos = std::begin(input);
@@ -381,8 +395,7 @@ auto deinterleave(Frames&& input, OutputIterator output) -> void {
 
 template <std::ranges::input_range Input, typename OutputIterator>
 	requires
-		std::same_as<std::iter_value_t<OutputIterator>, float> &&
-		is_frame_ref<std::ranges::range_value_t<Input>>
+		is_frame_ref<std::ranges::range_value_t<Input>, std::iter_value_t<OutputIterator>>
 auto interleave(Input&& input, OutputIterator output) -> void {
 	std::vector<std::ranges::iterator_t<std::ranges::range_reference_t<Input>>> iterators;
 	std::vector<std::ranges::sentinel_t<std::ranges::range_reference_t<Input>>> ends;
@@ -404,10 +417,10 @@ auto interleave(Input&& input, OutputIterator output) -> void {
 
 namespace detail {
 
-template <uint64_t Chs, uint64_t Frs>
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
 struct impl {
 	impl() = default;
-	impl(storage<Chs, Frs>&& st) : st_{std::move(st)} {}
+	impl(storage<ValueType, Chs, Frs>&& st) : st_{std::move(st)} {}
 	impl& operator=(const impl&)     = default;
 	impl& operator=(impl&&) noexcept = default;
 	impl(const impl&)                = default;
@@ -422,26 +435,26 @@ struct impl {
 		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
 		else                                 { return {Frs}; }
 	}
-	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<Frs>&             { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<Frs>& { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&              { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const float   { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, float f) const -> float             { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto begin() -> frame_iterator<Chs, Frs>                    { return {st_}; }
-	[[nodiscard]] auto end() -> frame_iterator<Chs, Frs>                      { return {}; }
-	[[nodiscard]] auto begin() const -> const_frame_iterator<Chs, Frs>        { return {st_}; }
-	[[nodiscard]] auto end() const -> const_frame_iterator<Chs, Frs>          { return {}; }
-	[[nodiscard]] auto cbegin() const -> const_frame_iterator<Chs, Frs>       { return {st_}; }
-	[[nodiscard]] auto cend() const -> const_frame_iterator<Chs, Frs>         { return {}; }
-	[[nodiscard]] auto data(channel_idx ch) -> float*                         { return detail::data(st_, ch); }
-	[[nodiscard]] auto data(channel_idx ch) const -> const float*             { return detail::data(st_, ch); }
-	[[nodiscard]] auto at() -> channel_data_t<Frs>&             requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
-	[[nodiscard]] auto at() const -> const channel_data_t<Frs>& requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() -> float*                         requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() const -> const float*             requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto at(frame_idx f) -> float&                requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(frame_idx f) const -> const float&    requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(float f) const -> float               requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&             { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>& { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&                         { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const float              { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, float f) const -> float                        { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                    { return {st_}; }
+	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                      { return {}; }
+	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>        { return {st_}; }
+	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>          { return {}; }
+	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>       { return {st_}; }
+	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>         { return {}; }
+	[[nodiscard]] auto data(channel_idx ch) -> float*                                    { return detail::data(st_, ch); }
+	[[nodiscard]] auto data(channel_idx ch) const -> const float*                        { return detail::data(st_, ch); }
+	[[nodiscard]] auto at() -> channel_data_t<ValueType, Frs>&             requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
+	[[nodiscard]] auto at() const -> const channel_data_t<ValueType, Frs>& requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
+	[[nodiscard]] auto data() -> float*                                    requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto data() const -> const float*                        requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto at(frame_idx f) -> float&                           requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(frame_idx f) const -> const float&               requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(float f) const -> float                          requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
@@ -455,9 +468,9 @@ struct impl {
 	auto resize(ads::frame_count frame_count) -> void
 		requires (Frs == DYNAMIC_EXTENT)
 	{
-		detail::resize<Chs>(st_, frame_count);
+		detail::resize(st_, frame_count);
 	}
-	auto set(frame_idx f, frame_t<Chs> value) -> void {
+	auto set(frame_idx f, frame_t<ValueType, Chs> value) -> void {
 		auto pos = std::begin(value);
 		for (size_t c = 0; c < detail::get_channel_count(st_).value; c++) {
 			detail::set(st_, channel_idx{c}, f, *pos++);
@@ -498,10 +511,10 @@ struct impl {
 	auto read(channel_idx ch, frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, start, n, read_fn);
 	}
-	auto write(frame_idx start, const impl<Chs, Frs>& data) -> frame_count {
+	auto write(frame_idx start, const impl<ValueType, Chs, Frs>& data) -> frame_count {
 		return detail::write(st_, start, data.get_frame_count(), data.st_);
 	}
-	auto write(const impl<Chs, Frs>& data) -> frame_count {
+	auto write(const impl<ValueType, Chs, Frs>& data) -> frame_count {
 		return detail::write(st_, frame_idx{0}, data.get_frame_count(), data.st_);
 	}
 	template <typename WriteFn>
@@ -537,23 +550,23 @@ struct impl {
 		return detail::write(st_, ch, start, n, write_fn);
 	}
 private:
-	alignas(16) storage<Chs, Frs> st_;
+	alignas(16) storage<ValueType, Chs, Frs> st_;
 };
 
 } // namespace detail
 
-template <uint64_t Chs, uint64_t Frs> using data = detail::impl<Chs, Frs>;
-template <uint64_t Frs> using mono   = data<1, Frs>;
-template <uint64_t Frs> using stereo = data<2, Frs>;
-using dynamic_mono   = data<1, DYNAMIC_EXTENT>;
-using dynamic_stereo = data<2, DYNAMIC_EXTENT>;
-using fully_dynamic  = data<DYNAMIC_EXTENT, DYNAMIC_EXTENT>;
+template <typename ValueType, uint64_t Chs, uint64_t Frs> using data   = detail::impl<ValueType, Chs, Frs>;
+template <typename ValueType, uint64_t Frs>               using mono   = data<ValueType, 1, Frs>;
+template <typename ValueType, uint64_t Frs>               using stereo = data<ValueType, 2, Frs>;
+template <typename ValueType> using dynamic_mono   = mono<ValueType, DYNAMIC_EXTENT>;
+template <typename ValueType> using dynamic_stereo = stereo<ValueType, DYNAMIC_EXTENT>;
+template <typename ValueType> using fully_dynamic  = data<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>;
 
-[[nodiscard]] inline
-auto make(ads::channel_count channel_count, ads::frame_count frame_count) -> data<DYNAMIC_EXTENT, DYNAMIC_EXTENT> {
-	ADS_ASSERT (channel_count.value <= detail::SANE_NUMBER_OF_CHANNELS && "Channel count too high");
-	ADS_ASSERT (frame_count.value <= detail::SANE_NUMBER_OF_FRAMES && "Frame count too high");
-	detail::storage<DYNAMIC_EXTENT, DYNAMIC_EXTENT> st;
+template <typename ValueType> [[nodiscard]]
+auto make(ads::channel_count channel_count, ads::frame_count frame_count) -> data<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT> {
+	if (channel_count.value > detail::SANE_NUMBER_OF_CHANNELS) { throw std::invalid_argument{std::format("ads::make(): Channel count {} is too high", channel_count.value)}; }
+	if (frame_count.value > detail::SANE_NUMBER_OF_FRAMES)     { throw std::invalid_argument{std::format("ads::make(): Frame count {} is too high", frame_count.value)}; }
+	detail::storage<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT> st;
 	st.resize(channel_count.value);
 	for (auto& channel : st) {
 		channel.resize(frame_count.value);
@@ -561,40 +574,41 @@ auto make(ads::channel_count channel_count, ads::frame_count frame_count) -> dat
 	return {std::move(st)};
 }
 
-template <uint64_t Chs> [[nodiscard]]
-auto make(ads::frame_count frame_count) -> data<Chs, DYNAMIC_EXTENT> {
-	ADS_ASSERT (frame_count.value <= detail::SANE_NUMBER_OF_FRAMES && "Frame count too high");
-	detail::storage<Chs, DYNAMIC_EXTENT> st;
+template <typename ValueType, uint64_t Chs> [[nodiscard]]
+auto make(ads::frame_count frame_count) -> data<ValueType, Chs, DYNAMIC_EXTENT> {
+	if (frame_count.value > detail::SANE_NUMBER_OF_FRAMES) { throw std::invalid_argument{std::format("ads::make(): Frame count {} is too high", frame_count.value)}; }
+	detail::storage<ValueType, Chs, DYNAMIC_EXTENT> st;
 	for (auto& channel : st) {
 		channel.resize(frame_count.value);
 	}
 	return {std::move(st)};
 }
 
-template <uint64_t Frs> [[nodiscard]]
-auto make(ads::channel_count channel_count) -> data<DYNAMIC_EXTENT, Frs> {
-	ADS_ASSERT (channel_count.value <= detail::SANE_NUMBER_OF_CHANNELS && "Channel count too high");
-	detail::storage<DYNAMIC_EXTENT, Frs> st;
+template <typename ValueType, uint64_t Frs> [[nodiscard]]
+auto make(ads::channel_count channel_count) -> data<ValueType, DYNAMIC_EXTENT, Frs> {
+	if (channel_count.value > detail::SANE_NUMBER_OF_CHANNELS) { throw std::invalid_argument{std::format("ads::make(): Channel count {} is too high", channel_count.value)}; }
+	detail::storage<ValueType, DYNAMIC_EXTENT, Frs> st;
 	st.resize(channel_count.value);
 	return {std::move(st)};
 }
 
-template <uint64_t Chs, uint64_t Frs> [[nodiscard]]
-auto make() -> data<Chs, Frs> {
+template <typename ValueType, uint64_t Chs, uint64_t Frs> [[nodiscard]]
+auto make() -> data<ValueType, Chs, Frs> {
 	return {};
 }
 
-template <uint64_t Frs> [[nodiscard]] auto make_mono() -> mono<Frs>     { return make<1, Frs>(); } 
-template <uint64_t Frs> [[nodiscard]] auto make_stereo() -> stereo<Frs> { return make<2, Frs>(); }
-[[nodiscard]] inline auto make_mono(ads::frame_count frame_count) -> dynamic_mono     { return make<1>(frame_count); } 
-[[nodiscard]] inline auto make_stereo(ads::frame_count frame_count) -> dynamic_stereo { return make<2>(frame_count); } 
+template <typename ValueType, uint64_t Frs> [[nodiscard]] auto make_mono() -> mono<ValueType, Frs>     { return make<ValueType, 1, Frs>(); } 
+template <typename ValueType, uint64_t Frs> [[nodiscard]] auto make_stereo() -> stereo<ValueType, Frs> { return make<ValueType, 2, Frs>(); }
+template <typename ValueType> [[nodiscard]] auto make_mono(ads::frame_count frame_count) -> dynamic_mono<ValueType>     { return make<ValueType, 1>(frame_count); } 
+template <typename ValueType> [[nodiscard]] auto make_stereo(ads::frame_count frame_count) -> dynamic_stereo<ValueType> { return make<ValueType, 2>(frame_count); } 
 
+template <typename ValueType>
 struct interleaved {
 	interleaved() = default;
 	interleaved(ads::channel_count channel_count, ads::frame_count frame_count)
 		: channel_count_{channel_count}
 		, frame_count_{frame_count}
-		, data_{make_mono({channel_count.value * frame_count.value})}
+		, data_{make_mono<ValueType>({channel_count.value * frame_count.value})}
 	{}
 	[[nodiscard]] auto get_channel_count() const -> channel_count { return channel_count_; }
 	[[nodiscard]] auto get_frame_count() const -> frame_count     { return frame_count_; }
@@ -619,7 +633,7 @@ struct interleaved {
 private:
 	ads::channel_count channel_count_;
 	ads::frame_count frame_count_;
-	dynamic_mono data_;
+	dynamic_mono<ValueType> data_;
 };
 
 } // namespace ads
