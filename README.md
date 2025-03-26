@@ -47,32 +47,32 @@ Or if not using CMake, simply copy+paste the headers into your project.
 
 ## Types
 
-*`template <uint64_t channel_count, uint64_t frame_count>`* *`ads::data`*
+*`template <typename ValueType, uint64_t channel_count, uint64_t frame_count>`* *`ads::data`*
 - Main audio storage type. The underlying storage type depends on the template arguments.
 - `ads::DYNAMIC_EXTENT` can be used for either `channel_count` or `frame_count`, or both.
 - `ads::DYNAMIC_EXTENT` means the count can be specified at runtime (and the `resize()` function will be available for that dimension.)
 
-*`template <uint64_t frame_count>`* *`ads::mono`*
+*`template <typename ValueType, uint64_t frame_count>`* *`ads::mono`*
 - 1 channel of a compile-time-known number of frames (unless `DYNAMIC_EXTENT` is specified.)
-- An alias for `ads::data<1, frame_count>`.
+- An alias for `ads::data<ValueType, 1, frame_count>`.
 
-*`template <uint64_t frame_count>`* *`ads::stereo`*
+*`template <typename ValueType, uint64_t frame_count>`* *`ads::stereo`*
 - 2 channels of a compile-time-known number of frames (unless `DYNAMIC_EXTENT` is specified.)
-- An alias for `ads::data<2, frame_count>`.
+- An alias for `ads::data<ValueType, 2, frame_count>`.
 
-*`ads::dynamic_mono`*
+*`template <typename ValueType>`* *`ads::dynamic_mono`*
 - 1 channel of a dynamic number of frames.
-- An alias for `ads::data<1, ads::DYNAMIC_EXTENT>`.
+- An alias for `ads::data<ValueType, 1, ads::DYNAMIC_EXTENT>`.
 
-*`ads::dynamic_stereo`*
+*`template <typename ValueType>`* *`ads::dynamic_stereo`*
 - 2 channels of a dynamic number of frames.
-- An alias for `ads::data<2, ads::DYNAMIC_EXTENT>`.
+- An alias for `ads::data<ValueType, 2, ads::DYNAMIC_EXTENT>`.
 
-*`ads::fully_dynamic`*
+*`template <typename ValueType>`* *`ads::fully_dynamic`*
 - A dynamic number of channels and frames.
-- An alias for `ads::data<ads::DYNAMIC_EXTENT, ads::DYNAMIC_EXTENT>`.
+- An alias for `ads::data<ValueType, ads::DYNAMIC_EXTENT, ads::DYNAMIC_EXTENT>`.
 
-*`ads::interleaved`*
+*`template <typename ValueType>`* *`ads::interleaved`*
 - A wrapper around `ads::dynamic_mono` intended to be used for interleaved audio channel data.
 - The channel count and frame count are specified at runtime and the total number of required underlying frames is calculated for you.
 
@@ -80,36 +80,36 @@ Or if not using CMake, simply copy+paste the headers into your project.
 ```c++
 // Mono data
 // Frame count known at runtime
-// type == ads::dynamic_mono / ads::data<1, ads::DYNAMIC_EXTENT>
-auto mono_data0 = ads::make_mono(ads::frame_count{10000});
-auto mono_data1 = ads::make<1>(ads::frame_count{10000}); // equivalent
+// type == ads::dynamic_mono<float> / ads::data<float, 1, ads::DYNAMIC_EXTENT>
+auto mono_data0 = ads::make_mono<float>(ads::frame_count{10000});
+auto mono_data1 = ads::make<float, 1>(ads::frame_count{10000}); // equivalent
 
 // Stereo data
 // Frame count known at runtime
-// type == ads::dynamic_stereo / ads::data<2, ads::DYNAMIC_EXTENT>
-auto stereo_data0 = ads::make_stereo(ads::frame_count{10000});
-auto stereo_data1 = ads::make<2>(ads::frame_count{10000}); // equivalent
+// type == ads::dynamic_stereo<float> / ads::data<float, 2, ads::DYNAMIC_EXTENT>
+auto stereo_data0 = ads::make_stereo<float>(ads::frame_count{10000});
+auto stereo_data1 = ads::make<float, 2>(ads::frame_count{10000}); // equivalent
 
 // Arbitrary number of channels known at compile time
 // Frame count known at runtime
-// type == ads::data<10, ads::DYNAMIC_EXTENT>
-auto data0 = ads::make<10>(ads::frame_count{10000});
+// type == ads::data<float, 10, ads::DYNAMIC_EXTENT>
+auto data0 = ads::make<float, 10>(ads::frame_count{10000});
 
 // Frame count known at compile time
 // Channel count known at runtime
-// type == ads::data<ads::DYNAMIC_EXTENT, 10>
-auto data1 = ads::make<10>(ads::channel_count{2});
+// type == ads::data<float, ads::DYNAMIC_EXTENT, 10>
+auto data1 = ads::make<float, 10>(ads::channel_count{2});
 
 // Channel count and frame count both known at compile time
-// type == ads::data<2, 64>
-auto data2 = ads::make<2, 64>();
+// type == ads::data<float, 2, 64>
+auto data2 = ads::make<float, 2, 64>();
 
 // Channel count and frame count both known at runtime
-// type == ads::fully_dynamic / ads::data<DYNAMIC_EXTENT, DYNAMIC_EXTENT>
-auto data3 = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+// type == ads::fully_dynamic<float> / ads::data<float, DYNAMIC_EXTENT, DYNAMIC_EXTENT>
+auto data3 = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 
 // 10,000 frames of interleaved stereo data (therefore the underlying buffer is a single channel of 20,000 frames.)
-auto interleaved = ads::interleaved{ads::channel_count{2}, ads::frame_count{10000}};
+auto interleaved = ads::interleaved<float>{ads::channel_count{2}, ads::frame_count{10000}};
 
 // Convert from interleaved to multi-channel
 ads::deinterleave(interleaved, data3.begin());
