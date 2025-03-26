@@ -174,7 +174,7 @@ data.write([](float* buffer, ads::frame_idx start, ads::frame_count frame_count)
 
 This will write ones to only the second channel:
 ```c++
-auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
   std::fill(buffer, buffer + frame_count.value, 1.0f);
   return frame_count;
@@ -183,7 +183,7 @@ data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::fra
 
 This will write zeros to the first channel, and ones to the second channel:
 ```c++
-auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 data.write([](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
   if (ch.value == 0) { std::fill(buffer, buffer + frame_count.value, 0.0f); }
   else               { std::fill(buffer, buffer + frame_count.value, 1.0f); }
@@ -193,7 +193,7 @@ data.write([](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::fra
 
 This does the same thing:
 ```c++
-auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 data.write(ads::channel_idx{0}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
   std::fill(buffer, buffer + frame_count.value, 0.0f);
   return frame_count;
@@ -206,7 +206,7 @@ data.write(ads::channel_idx{1}, [](float* buffer, ads::frame_idx start, ads::fra
 
 This will write ones to the first 100 frames:
 ```c++
-auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 data.write(ads::frame_count{100}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
   std::fill(buffer, buffer + frame_count.value, 1.0f);
   return frame_count;
@@ -215,7 +215,7 @@ data.write(ads::frame_count{100}, [](float* buffer, ads::frame_idx start, ads::f
 
 This will write ones to frames 50-99:
 ```c++
-auto data = ads::make(ads::channel_count{2}, ads::frame_count{10000});
+auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{10000});
 data.write(ads::frame_idx{50}, ads::frame_count{50}, [](float* buffer, ads::frame_idx start, ads::frame_count frame_count){
   std::fill(buffer, buffer + frame_count.value, 1.0f);
   return frame_count;
