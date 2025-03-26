@@ -45,14 +45,6 @@ target_link_libraries(your-project ads::ads)
 
 Or if not using CMake, simply copy+paste the headers into your project.
 
-## Extra configuration
-You can override `ADS_ASSERT` before including `ads.hpp` to have the library use a different assertion macro:
-```c++
-#define ADS_ASSERT(x) MY_ASSERT(x)
-#include <ads.hpp>
-```
-By default `<cassert>` is used.
-
 ## Types
 
 *`template <uint64_t channel_count, uint64_t frame_count>`* *`ads::data`*
