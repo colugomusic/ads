@@ -91,8 +91,8 @@ auto at(const Storage& st, channel_idx channel, float frame) -> float {
 
 template <typename Storage> [[nodiscard]]
 auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, false> {
-	frame_ref_t<Storage::CHANNEL_COUNT, false> frame;
-	for (uint64_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
+	frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, false> frame;
+	for (size_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
 		frame[c] = &st[c].at(frame_idx.value);
 	}
 	return frame;
@@ -100,8 +100,8 @@ auto at(Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::
 
 template <typename Storage> [[nodiscard]]
 auto at(const Storage& st, ads::frame_idx frame_idx) -> frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, true> {
-	frame_ref_t<Storage::CHANNEL_COUNT, true> frame;
-	for (uint64_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
+	frame_ref_t<typename Storage::value_type, Storage::CHANNEL_COUNT, true> frame;
+	for (size_t c = 0; c < Storage::CHANNEL_COUNT; c++) {
 		frame[c] = &st[c].at(frame_idx.value);
 	}
 	return frame;
