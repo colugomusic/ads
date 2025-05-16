@@ -54,11 +54,16 @@ template <uint64_t Chs, typename ChannelData> struct channels                   
 template <typename ChannelData>               struct channels<DYNAMIC_EXTENT, ChannelData> { using type = std::vector<ChannelData>; };
 template <uint64_t Chs, typename ChannelData> using channels_t = typename channels<Chs, ChannelData>::type;
 
+template <typename ValueType, uint64_t Frs> using channel_iterator_t       = typename channel_data_t<ValueType, Frs>::iterator;
+template <typename ValueType, uint64_t Frs> using const_channel_iterator_t = typename channel_data_t<ValueType, Frs>::const_iterator;
+
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
 struct storage : channels_t<Chs, channel_data_t<ValueType, Frs>> {
 	static constexpr auto CHANNEL_COUNT = Chs;
 	static constexpr auto FRAME_COUNT   = Frs;
-	using value_type = ValueType;
+	using value_type             = ValueType;
+	using channel_iterator       = channel_iterator_t<ValueType, Frs>;
+	using const_channel_iterator = const_channel_iterator_t<ValueType, Frs>;
 };
 
 template <typename Storage> [[nodiscard]]
@@ -378,43 +383,6 @@ template <typename ValueType, uint64_t Chs, uint64_t Frs> using const_frame_iter
 
 } // namespace detail
 
-template <std::ranges::input_range Frames, typename OutputIterator>
-	requires
-		is_frame_ref<std::iter_value_t<OutputIterator>, std::ranges::range_value_t<Frames>>
-auto deinterleave(Frames&& input, OutputIterator output) -> void {
-	static auto channel_count = std::size(*output);
-	auto pos = std::begin(input);
-	auto end = std::end(input);
-	while (pos != end) {
-		auto output_frame = *output++;
-		for (auto ptr : output_frame) {
-			*ptr = *pos++;
-		}
-	}
-}
-
-template <std::ranges::input_range Input, typename OutputIterator>
-	requires
-		is_frame_ref<std::ranges::range_value_t<Input>, std::iter_value_t<OutputIterator>>
-auto interleave(Input&& input, OutputIterator output) -> void {
-	std::vector<std::ranges::iterator_t<std::ranges::range_reference_t<Input>>> iterators;
-	std::vector<std::ranges::sentinel_t<std::ranges::range_reference_t<Input>>> ends;
-	for (auto&& channel : input) {
-		iterators.push_back(std::begin(channel));
-		ends.push_back(std::end(channel));
-	}
-	bool progress = false;
-	do {
-		progress = false;
-		for (size_t c = 0; c < iterators.size(); c++) {
-			if (iterators[c] != ends[c]) {
-				*output++ = **iterators[c]++;
-				progress = true;
-			}
-		}
-	} while (progress);
-}
-
 namespace detail {
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
@@ -435,19 +403,25 @@ struct impl {
 		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
 		else                                 { return {Frs}; }
 	}
-	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&             { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>& { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&                         { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const float              { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, float f) const -> float                        { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                    { return {st_}; }
-	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                      { return {}; }
-	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>        { return {st_}; }
-	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>          { return {}; }
-	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>       { return {st_}; }
-	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>         { return {}; }
-	[[nodiscard]] auto data(channel_idx ch) -> float*                                    { return detail::data(st_, ch); }
-	[[nodiscard]] auto data(channel_idx ch) const -> const float*                        { return detail::data(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&               { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>&   { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&                           { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const float                { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, float f) const -> float                          { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                      { return {st_}; }
+	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                        { return {}; }
+	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>          { return {st_}; }
+	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>            { return {}; }
+	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>         { return {st_}; }
+	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>           { return {}; }
+	[[nodiscard]] auto channels_begin() -> channel_iterator_t<ValueType, Frs>              { return std::begin(st_); }
+	[[nodiscard]] auto channels_end()   -> channel_iterator_t<ValueType, Frs>              { return std::end(st_); }
+	[[nodiscard]] auto channels_begin() const                                              { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_end() const                                                { return std::cend(st_); }
+	[[nodiscard]] auto channels_cbegin() const                                             { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_cend() const                                               { return std::cend(st_); }
+	[[nodiscard]] auto data(channel_idx ch) -> float*                                      { return detail::data(st_, ch); }
+	[[nodiscard]] auto data(channel_idx ch) const -> const float*                          { return detail::data(st_, ch); }
 	[[nodiscard]] auto at() -> channel_data_t<ValueType, Frs>&             requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
 	[[nodiscard]] auto at() const -> const channel_data_t<ValueType, Frs>& requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
 	[[nodiscard]] auto data() -> float*                                    requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
@@ -562,6 +536,9 @@ template <typename ValueType> using dynamic_mono   = mono<ValueType, DYNAMIC_EXT
 template <typename ValueType> using dynamic_stereo = stereo<ValueType, DYNAMIC_EXTENT>;
 template <typename ValueType> using fully_dynamic  = data<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>;
 
+template <typename ValueType, uint64_t Chs, uint64_t Frs> [[nodiscard]] auto as_channel_range(data<ValueType, Chs, Frs>& st)       { return std::ranges::subrange(st.channels_begin(), st.channels_end()); }
+template <typename ValueType, uint64_t Chs, uint64_t Frs> [[nodiscard]] auto as_channel_range(const data<ValueType, Chs, Frs>& st) { return std::ranges::subrange(st.channels_cbegin(), st.channels_cend()); }
+
 template <typename ValueType> [[nodiscard]]
 auto make(ads::channel_count channel_count, ads::frame_count frame_count) -> data<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT> {
 	if (channel_count.value > detail::SANE_NUMBER_OF_CHANNELS) { throw std::invalid_argument{std::format("ads::make(): Channel count {} is too high", channel_count.value)}; }
@@ -601,6 +578,47 @@ template <typename ValueType, uint64_t Frs> [[nodiscard]] auto make_mono() -> mo
 template <typename ValueType, uint64_t Frs> [[nodiscard]] auto make_stereo() -> stereo<ValueType, Frs> { return make<ValueType, 2, Frs>(); }
 template <typename ValueType> [[nodiscard]] auto make_mono(ads::frame_count frame_count) -> dynamic_mono<ValueType>     { return make<ValueType, 1>(frame_count); } 
 template <typename ValueType> [[nodiscard]] auto make_stereo(ads::frame_count frame_count) -> dynamic_stereo<ValueType> { return make<ValueType, 2>(frame_count); } 
+
+template <std::ranges::input_range Frames, typename OutputIterator>
+	requires
+		is_frame_ref<std::iter_value_t<OutputIterator>, std::ranges::range_value_t<Frames>>
+auto deinterleave(Frames&& input, OutputIterator output) -> void {
+	static auto channel_count = std::size(*output);
+	auto pos = std::begin(input);
+	auto end = std::end(input);
+	while (pos != end) {
+		auto output_frame = *output++;
+		for (auto ptr : output_frame) {
+			*ptr = *pos++;
+		}
+	}
+}
+
+template <typename ValueType, std::ranges::input_range Input, typename OutputIterator>
+	requires std::is_same_v<std::ranges::range_value_t<std::ranges::range_reference_t<Input>>, ValueType>
+auto interleave(Input&& input, OutputIterator output) -> void {
+	std::vector<std::ranges::iterator_t<std::ranges::range_reference_t<Input>>> iterators;
+	std::vector<std::ranges::sentinel_t<std::ranges::range_reference_t<Input>>> ends;
+	for (auto&& channel : input) {
+		iterators.push_back(std::begin(channel));
+		ends.push_back(std::end(channel));
+	}
+	bool progress = false;
+	do {
+		progress = false;
+		for (size_t c = 0; c < iterators.size(); c++) {
+			if (iterators[c] != ends[c]) {
+				*output++ = *iterators[c]++;
+				progress = true;
+			}
+		}
+	} while (progress);
+}
+
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename OutputIterator>
+auto interleave(const data<ValueType, Chs, Frs>& input, OutputIterator output) -> void {
+	interleave<ValueType>(as_channel_range(input), output);
+}
 
 template <typename ValueType>
 struct interleaved {

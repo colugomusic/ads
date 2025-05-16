@@ -33,6 +33,28 @@ TEST_CASE("mono dynamic") {
 	write_read_iota(&st, ads::channel_idx{0});
 }
 
+TEST_CASE("interleave") {
+	auto data = ads::make<float>(ads::channel_count{2}, ads::frame_count{4});
+	data.set(ads::channel_idx{0}, ads::frame_idx{0}, 0.0f);
+	data.set(ads::channel_idx{1}, ads::frame_idx{0}, 1.0f);
+	data.set(ads::channel_idx{0}, ads::frame_idx{1}, 2.0f);
+	data.set(ads::channel_idx{1}, ads::frame_idx{1}, 3.0f);
+	data.set(ads::channel_idx{0}, ads::frame_idx{2}, 4.0f);
+	data.set(ads::channel_idx{1}, ads::frame_idx{2}, 5.0f);
+	data.set(ads::channel_idx{0}, ads::frame_idx{3}, 6.0f);
+	data.set(ads::channel_idx{1}, ads::frame_idx{3}, 7.0f);
+	auto interleaved = ads::interleaved<float>{ads::channel_count{2}, ads::frame_count{4}};
+	ads::interleave(data, interleaved.begin());
+	REQUIRE (interleaved.at(0) == 0.0f);
+	REQUIRE (interleaved.at(1) == 1.0f);
+	REQUIRE (interleaved.at(2) == 2.0f);
+	REQUIRE (interleaved.at(3) == 3.0f);
+	REQUIRE (interleaved.at(4) == 4.0f);
+	REQUIRE (interleaved.at(5) == 5.0f);
+	REQUIRE (interleaved.at(6) == 6.0f);
+	REQUIRE (interleaved.at(7) == 7.0f);
+}
+
 TEST_CASE("usage examples") {
 	// Mono data
 	// Frame count known at runtime
