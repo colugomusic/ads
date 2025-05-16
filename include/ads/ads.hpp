@@ -594,8 +594,19 @@ auto deinterleave(Frames&& input, OutputIterator output) -> void {
 	}
 }
 
-template <typename ValueType, std::ranges::input_range Input, typename OutputIterator>
-	requires std::is_same_v<std::ranges::range_value_t<std::ranges::range_reference_t<Input>>, ValueType>
+template <std::ranges::input_range Input, typename OutputIterator>
+	requires
+		is_frame_ref<std::ranges::range_value_t<Input>, std::iter_value_t<OutputIterator>>
+auto interleave(Input&& input, OutputIterator output) -> void {
+	for (const auto& frame : input) {
+		for (const auto channel_value : frame) {
+			*output++ = *channel_value;
+		}
+	}
+}
+
+template <std::ranges::input_range Input, typename OutputIterator>
+	requires std::is_same_v<std::ranges::range_value_t<std::ranges::range_reference_t<Input>>, std::iter_value_t<OutputIterator>>
 auto interleave(Input&& input, OutputIterator output) -> void {
 	std::vector<std::ranges::iterator_t<std::ranges::range_reference_t<Input>>> iterators;
 	std::vector<std::ranges::sentinel_t<std::ranges::range_reference_t<Input>>> ends;
@@ -617,7 +628,7 @@ auto interleave(Input&& input, OutputIterator output) -> void {
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename OutputIterator>
 auto interleave(const data<ValueType, Chs, Frs>& input, OutputIterator output) -> void {
-	interleave<ValueType>(as_channel_range(input), output);
+	interleave(as_channel_range(input), output);
 }
 
 template <typename ValueType>
