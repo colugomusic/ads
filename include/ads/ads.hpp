@@ -665,4 +665,11 @@ private:
 	dynamic_mono<ValueType> data_;
 };
 
+namespace concepts {
+
+template <typename ValueType, typename Fn> concept write_fn = detail::is_write_fn<ValueType, Fn>;
+template <typename ValueType, typename Fn> concept read_fn  = detail::is_read_fn<ValueType, Fn>;
+
+} // concepts
+
 } // namespace ads
