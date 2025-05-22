@@ -77,17 +77,17 @@ auto at(const Storage& st, channel_idx channel) -> const channel_data_t<typename
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(const Storage& st, channel_idx channel, frame_idx frame) -> const float& {
+auto at(const Storage& st, channel_idx channel, frame_idx frame) -> const typename Storage::value_type& {
 	return st.at(channel.value).at(frame.value);
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(Storage& st, channel_idx channel, frame_idx frame) -> float& {
+auto at(Storage& st, channel_idx channel, frame_idx frame) -> typename Storage::value_type& {
 	return st.at(channel.value).at(frame.value);
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(const Storage& st, channel_idx channel, float frame) -> float {
+auto at(const Storage& st, channel_idx channel, float frame) -> typename Storage::value_type {
 	const auto index0 = frame_idx{static_cast<uint64_t>(std::floor(frame))};
 	const auto index1 = frame_idx{static_cast<uint64_t>(std::ceil(frame))};
 	const auto t      = frame - index0.value;
@@ -152,12 +152,12 @@ template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> 
 template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
 
 template <typename Storage> [[nodiscard]]
-auto data(Storage& st, channel_idx ch) -> float* {
+auto data(Storage& st, channel_idx ch) -> typename Storage::value_type* {
 	return st.at(ch.value).data();
 }
 
 template <typename Storage> [[nodiscard]]
-auto data(const Storage& st, channel_idx ch) -> const float* {
+auto data(const Storage& st, channel_idx ch) -> const typename Storage::value_type* {
 	return st.at(ch.value).data();
 }
 
@@ -182,7 +182,7 @@ auto resize(storage<ValueType, DYNAMIC_EXTENT, Frs>& st, ads::channel_count chan
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
-auto set(storage<ValueType, Chs, Frs>& st, channel_idx channel, frame_idx frame, float value) -> void {
+auto set(storage<ValueType, Chs, Frs>& st, channel_idx channel, frame_idx frame, ValueType value) -> void {
 	st.at(channel.value).at(frame.value) = value;
 }
 
@@ -248,7 +248,7 @@ auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx star
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
 	requires is_multi_channel_read_fn<ValueType, ReadFn>
 auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
-	return read(st, ch, start, frame_count, [ch, read_fn](const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+	return read(st, ch, start, frame_count, [ch, read_fn](const ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return read_fn(buffer, ch, frame_start, frame_count);
 	});
 }
@@ -292,7 +292,7 @@ auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ad
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
 	requires is_multi_channel_write_fn<ValueType, WriteFn>
 auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
-	return write(st, ch, start, frame_count, [ch, write_fn](float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
+	return write(st, ch, start, frame_count, [ch, write_fn](ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return write_fn(buffer, ch, frame_start, frame_count);
 	});
 }
@@ -319,7 +319,7 @@ auto write(storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count f
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
 auto write(storage<ValueType, Chs, Frs>& dest, frame_idx start, ads::frame_count frame_count, const storage<ValueType, Chs, Frs>& src) -> ads::frame_count {
-	return write(dest, start, frame_count, [&src](float* buffer, channel_idx ch, frame_idx frame_start, ads::frame_count frame_count) {
+	return write(dest, start, frame_count, [&src](ValueType* buffer, channel_idx ch, frame_idx frame_start, ads::frame_count frame_count) {
 		const auto& channel = at(src, ch);
 		std::copy_n(channel.begin(), frame_count.value, buffer);
 		return frame_count;
@@ -403,32 +403,32 @@ struct impl {
 		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
 		else                                 { return {Frs}; }
 	}
-	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&               { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>&   { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> float&                           { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const float                { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, float f) const -> float                          { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                      { return {st_}; }
-	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                        { return {}; }
-	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>          { return {st_}; }
-	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>            { return {}; }
-	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>         { return {st_}; }
-	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>           { return {}; }
-	[[nodiscard]] auto channels_begin() -> channel_iterator_t<ValueType, Frs>              { return std::begin(st_); }
-	[[nodiscard]] auto channels_end()   -> channel_iterator_t<ValueType, Frs>              { return std::end(st_); }
-	[[nodiscard]] auto channels_begin() const                                              { return std::cbegin(st_); }
-	[[nodiscard]] auto channels_end() const                                                { return std::cend(st_); }
-	[[nodiscard]] auto channels_cbegin() const                                             { return std::cbegin(st_); }
-	[[nodiscard]] auto channels_cend() const                                               { return std::cend(st_); }
-	[[nodiscard]] auto data(channel_idx ch) -> float*                                      { return detail::data(st_, ch); }
-	[[nodiscard]] auto data(channel_idx ch) const -> const float*                          { return detail::data(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&                            { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>&                { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> ValueType&                                    { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const ValueType                         { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, float f) const -> ValueType                                   { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                                   { return {st_}; }
+	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                                     { return {}; }
+	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>                       { return {st_}; }
+	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>                         { return {}; }
+	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>                      { return {st_}; }
+	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>                        { return {}; }
+	[[nodiscard]] auto channels_begin() -> channel_iterator_t<ValueType, Frs>                           { return std::begin(st_); }
+	[[nodiscard]] auto channels_end()   -> channel_iterator_t<ValueType, Frs>                           { return std::end(st_); }
+	[[nodiscard]] auto channels_begin() const                                                           { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_end() const                                                             { return std::cend(st_); }
+	[[nodiscard]] auto channels_cbegin() const                                                          { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_cend() const                                                            { return std::cend(st_); }
+	[[nodiscard]] auto data(channel_idx ch) -> ValueType*                                               { return detail::data(st_, ch); }
+	[[nodiscard]] auto data(channel_idx ch) const -> const ValueType*                                   { return detail::data(st_, ch); }
 	[[nodiscard]] auto at() -> channel_data_t<ValueType, Frs>&             requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
 	[[nodiscard]] auto at() const -> const channel_data_t<ValueType, Frs>& requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() -> float*                                    requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() const -> const float*                        requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto at(frame_idx f) -> float&                           requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(frame_idx f) const -> const float&               requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(float f) const -> float                          requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto data() -> ValueType*                                requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto data() const -> const ValueType*                    requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto at(frame_idx f) -> ValueType&                       requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(frame_idx f) const -> const ValueType&           requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(float f) const -> ValueType                      requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
@@ -450,7 +450,7 @@ struct impl {
 			detail::set(st_, channel_idx{c}, f, *pos++);
 		}
 	}
-	auto set(channel_idx ch, frame_idx f, float value) -> void {
+	auto set(channel_idx ch, frame_idx f, ValueType value) -> void {
 		detail::set(st_, ch, f, value);
 	}
 	template <typename ReadFn>
@@ -639,18 +639,18 @@ struct interleaved {
 		, frame_count_{frame_count}
 		, data_{make_mono<ValueType>({channel_count.value * frame_count.value})}
 	{}
-	[[nodiscard]] auto get_channel_count() const -> channel_count { return channel_count_; }
-	[[nodiscard]] auto get_frame_count() const -> frame_count     { return frame_count_; }
-	[[nodiscard]] auto at(uint64_t index) -> float&               { return data_.at(frame_idx{index}); }
-	[[nodiscard]] auto at(uint64_t index) const -> const float&   { return data_.at(frame_idx{index}); }
-	[[nodiscard]] auto begin()                                    { return data_.at().begin(); }
-	[[nodiscard]] auto end()                                      { return data_.at().end(); }
-	[[nodiscard]] auto begin() const                              { return data_.at().begin(); }
-	[[nodiscard]] auto end() const                                { return data_.at().end(); }
-	[[nodiscard]] auto cbegin() const                             { return data_.at().begin(); }
-	[[nodiscard]] auto cend() const                               { return data_.at().end(); }
-	[[nodiscard]] auto data() -> float*                           { return data_.data(); }
-	[[nodiscard]] auto data() const -> const float*               { return data_.data(); }
+	[[nodiscard]] auto get_channel_count() const -> channel_count   { return channel_count_; }
+	[[nodiscard]] auto get_frame_count() const -> frame_count       { return frame_count_; }
+	[[nodiscard]] auto at(uint64_t index) -> ValueType&             { return data_.at(frame_idx{index}); }
+	[[nodiscard]] auto at(uint64_t index) const -> const ValueType& { return data_.at(frame_idx{index}); }
+	[[nodiscard]] auto begin()                                      { return data_.at().begin(); }
+	[[nodiscard]] auto end()                                        { return data_.at().end(); }
+	[[nodiscard]] auto begin() const                                { return data_.at().begin(); }
+	[[nodiscard]] auto end() const                                  { return data_.at().end(); }
+	[[nodiscard]] auto cbegin() const                               { return data_.at().begin(); }
+	[[nodiscard]] auto cend() const                                 { return data_.at().end(); }
+	[[nodiscard]] auto data() -> ValueType*                         { return data_.data(); }
+	[[nodiscard]] auto data() const -> const ValueType*             { return data_.data(); }
 	auto resize(ads::channel_count channel_count) -> void {
 		channel_count_ = channel_count;
 		data_.resize(ads::frame_count{channel_count_.value * frame_count_.value});
