@@ -364,7 +364,7 @@ auto set(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::fra
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename WriterFn>
-	requires ads::detail::is_single_channel_write_fn<REP, WriterFn>
+	requires ads::concepts::is_single_channel_write_fn<REP, WriterFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frames_to_write, WriterFn writer) -> ads::frame_count {
 	const auto frame_count = get_frame_count(*impl);
 	if (start.value  >= frame_count.value) {
@@ -377,7 +377,7 @@ auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::f
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename WriterFn>
-	requires ads::detail::is_multi_channel_write_fn<REP, WriterFn>
+	requires ads::concepts::is_multi_channel_write_fn<REP, WriterFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::frame_idx start, ads::frame_count frames_to_write, WriterFn writer) -> ads::frame_count {
 	const auto frame_count = get_frame_count(*impl);
 	if (start.value  >= frame_count.value) {
@@ -420,28 +420,28 @@ auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::f
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename ProviderFn>
-	requires ads::detail::is_multi_channel_provider_fn<uint8_t, ProviderFn>
+	requires ads::concepts::is_multi_channel_provider_fn<uint8_t, ProviderFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::frame_idx start, ads::frame_count frames_to_write, ProviderFn provider) -> ads::frame_count {
 	auto conversion = [impl](uint8_t value) { return value; };
 	return write(impl, start, frames_to_write, provider, conversion);
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename ProviderFn>
-	requires ads::detail::is_single_channel_provider_fn<uint8_t, ProviderFn>
+	requires ads::concepts::is_single_channel_provider_fn<uint8_t, ProviderFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frames_to_write, ProviderFn provider) -> ads::frame_count {
 	auto conversion = [impl](uint8_t value) { return value; };
 	return write(impl, ch, start, frames_to_write, provider, conversion);
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename ProviderFn>
-	requires ads::detail::is_multi_channel_provider_fn<float, ProviderFn>
+	requires ads::concepts::is_multi_channel_provider_fn<float, ProviderFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::frame_idx start, ads::frame_count frames_to_write, ProviderFn provider) -> ads::frame_count {
 	auto conversion = [impl](float value) { return encode(*impl, value); };
 	return write(impl, start, frames_to_write, provider, conversion);
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs, typename ProviderFn>
-	requires ads::detail::is_single_channel_provider_fn<float, ProviderFn>
+	requires ads::concepts::is_single_channel_provider_fn<float, ProviderFn>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frames_to_write, ProviderFn provider) -> ads::frame_count {
 	auto conversion = [impl](float value) { return encode(*impl, value); };
 	return write(impl, ch, start, frames_to_write, provider, conversion);
@@ -574,29 +574,29 @@ struct mipmap {
 	// Write level zero frame data beginning at frame_begin, using a custom writer function
 	// The writer needs to encode the frames to the range VALUE_MIN<REP>..VALUE_MAX<REP> itself
 	template <typename WriterFn>
-		requires ads::detail::is_single_channel_write_fn<REP, WriterFn>
+		requires ads::concepts::is_single_channel_write_fn<REP, WriterFn>
 	auto write(ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count, WriterFn writer) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, ch, start, frame_count, writer);
 	}
 	// Write level zero frame data using a custom provider function which supplies the float data.
 	template <typename ProviderFn>
-		requires ads::detail::is_multi_channel_provider_fn<float, ProviderFn>
+		requires ads::concepts::is_multi_channel_provider_fn<float, ProviderFn>
 	auto write(ads::frame_idx start, ads::frame_count frame_count, ProviderFn provider) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, start, frame_count, provider);
 	}
 	template <typename ProviderFn>
-		requires ads::detail::is_single_channel_provider_fn<float, ProviderFn>
+		requires ads::concepts::is_single_channel_provider_fn<float, ProviderFn>
 	auto write(ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count, ProviderFn provider) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, ch, start, frame_count, provider);
 	}
 	// Write level zero frame data using a custom provider function which supplies pre-encoded level zero data.
 	template <typename ProviderFn>
-		requires ads::detail::is_multi_channel_provider_fn<uint8_t, ProviderFn>
+		requires ads::concepts::is_multi_channel_provider_fn<uint8_t, ProviderFn>
 	auto write(ads::frame_idx start, ads::frame_count frame_count, ProviderFn provider) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, start, frame_count, provider);
 	}
 	template <typename ProviderFn>
-		requires ads::detail::is_single_channel_provider_fn<uint8_t, ProviderFn>
+		requires ads::concepts::is_single_channel_provider_fn<uint8_t, ProviderFn>
 	auto write(ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count, ProviderFn provider) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, ch, start, frame_count, provider);
 	}

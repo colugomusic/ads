@@ -34,7 +34,7 @@ auto read(const data<ValueType, Chs, Frs>& src, ml::DSPVectorDynamic* dest) -> f
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
-	requires (detail::is_mono_data<Chs>)
+	requires (concepts::is_mono_data<Chs>)
 auto read(const data<ValueType, Chs, Frs>& src, frame_idx start, ml::DSPVector* dst) -> frame_count {
 	return src.read(start, {kFloatsPerDSPVector}, [dst](const float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return copy(buffer, dst, frame_count);
@@ -42,7 +42,7 @@ auto read(const data<ValueType, Chs, Frs>& src, frame_idx start, ml::DSPVector* 
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
-	requires (detail::is_mono_data<Chs>)
+	requires (concepts::is_mono_data<Chs>)
 auto read(const data<ValueType, Chs, Frs>& src, ml::DSPVector* dst) -> frame_count {
 	return read(src, frame_idx{0}, dst);
 }
@@ -72,7 +72,7 @@ auto write(data<ValueType, Chs, Frs>* dst, const ml::DSPVectorDynamic& src) -> f
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
-	requires (detail::is_mono_data<Chs>)
+	requires (concepts::is_mono_data<Chs>)
 auto write(data<ValueType, Chs, Frs>* dst, frame_idx start, const ml::DSPVector& signal) -> frame_count {
 	return dst->write(start, {kFloatsPerDSPVector}, [&signal](float* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return copy(signal, buffer, frame_count);
@@ -80,7 +80,7 @@ auto write(data<ValueType, Chs, Frs>* dst, frame_idx start, const ml::DSPVector&
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
-	requires (detail::is_mono_data<Chs>)
+	requires (concepts::is_mono_data<Chs>)
 auto write(data<ValueType, Chs, Frs>* dst, const ml::DSPVector& signal) -> frame_count {
 	return write(dst, frame_idx{0}, signal);
 }

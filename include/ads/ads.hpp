@@ -193,6 +193,10 @@ auto set(storage<ValueType, Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Val
 	}
 }
 
+} // namespace detail
+
+namespace concepts {
+
 template <uint64_t Chs>
 concept is_mono_data = Chs == 1;
 
@@ -229,8 +233,12 @@ concept is_single_channel_provider_fn = requires(Fn fn, frame_idx fr) {
 template <typename ValueType, typename Fn> concept is_read_fn  = is_single_channel_read_fn<ValueType, Fn> || is_multi_channel_read_fn<ValueType, Fn>;
 template <typename ValueType, typename Fn> concept is_write_fn = is_single_channel_write_fn<ValueType, Fn> || is_multi_channel_write_fn<ValueType, Fn>;
 
+} // namespace concepts
+
+namespace detail {
+
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_single_channel_read_fn<ValueType, ReadFn>
+	requires concepts::is_single_channel_read_fn<ValueType, ReadFn>
 auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	if (start.value > SANE_NUMBER_OF_FRAMES) {
 		throw std::underflow_error{std::format("ads::detail::read() with frame start = {} is insane", start.value)};
@@ -246,7 +254,7 @@ auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx star
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_multi_channel_read_fn<ValueType, ReadFn>
+	requires concepts::is_multi_channel_read_fn<ValueType, ReadFn>
 auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	return read(st, ch, start, frame_count, [ch, read_fn](const ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return read_fn(buffer, ch, frame_start, frame_count);
@@ -254,13 +262,13 @@ auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx star
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires is_single_channel_read_fn<ValueType, ReadFn> && is_mono_data<Chs>
+	requires concepts::is_single_channel_read_fn<ValueType, ReadFn> && concepts::is_mono_data<Chs>
 auto read(const storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	return read(st, channel_idx{0}, start, frame_count, read_fn);
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
-	requires ((is_single_channel_read_fn<ValueType, ReadFn> && !is_mono_data<Chs>) || is_multi_channel_read_fn<ValueType, ReadFn>)
+	requires ((concepts::is_single_channel_read_fn<ValueType, ReadFn> && !concepts::is_mono_data<Chs>) || concepts::is_multi_channel_read_fn<ValueType, ReadFn>)
 auto read(const storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, ReadFn read_fn) -> ads::frame_count {
 	auto frames_read = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {
@@ -274,7 +282,7 @@ auto read(const storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_co
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_single_channel_write_fn<ValueType, WriteFn>
+	requires concepts::is_single_channel_write_fn<ValueType, WriteFn>
 auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	if (start.value > SANE_NUMBER_OF_FRAMES) {
 		throw std::underflow_error{std::format("ads::detail::write() with frame start = {} is insane", start.value)};
@@ -290,7 +298,7 @@ auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ad
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_multi_channel_write_fn<ValueType, WriteFn>
+	requires concepts::is_multi_channel_write_fn<ValueType, WriteFn>
 auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	return write(st, ch, start, frame_count, [ch, write_fn](ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
 		return write_fn(buffer, ch, frame_start, frame_count);
@@ -298,13 +306,13 @@ auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ad
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires is_single_channel_write_fn<ValueType, WriteFn> && is_mono_data<Chs>
+	requires concepts::is_single_channel_write_fn<ValueType, WriteFn> && concepts::is_mono_data<Chs>
 auto write(storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	return write(st, channel_idx{0}, start, frame_count, write_fn);
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename WriteFn>
-	requires ((is_single_channel_write_fn<ValueType, WriteFn> && !is_mono_data<Chs>) || is_multi_channel_write_fn<ValueType, WriteFn>)
+	requires ((concepts::is_single_channel_write_fn<ValueType, WriteFn> && !concepts::is_mono_data<Chs>) || concepts::is_multi_channel_write_fn<ValueType, WriteFn>)
 auto write(storage<ValueType, Chs, Frs>& st, frame_idx start, ads::frame_count frame_count, WriteFn write_fn) -> ads::frame_count {
 	auto frames_written = ads::frame_count{0};
 	for (size_t c = 0; c < st.size(); c++) {
@@ -403,32 +411,32 @@ struct impl {
 		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
 		else                                 { return {Frs}; }
 	}
-	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&                            { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>&                { return detail::at(st_, ch); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> ValueType&                                    { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const ValueType                         { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, float f) const -> ValueType                                   { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                                   { return {st_}; }
-	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                                     { return {}; }
-	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>                       { return {st_}; }
-	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>                         { return {}; }
-	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>                      { return {st_}; }
-	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>                        { return {}; }
-	[[nodiscard]] auto channels_begin() -> channel_iterator_t<ValueType, Frs>                           { return std::begin(st_); }
-	[[nodiscard]] auto channels_end()   -> channel_iterator_t<ValueType, Frs>                           { return std::end(st_); }
-	[[nodiscard]] auto channels_begin() const                                                           { return std::cbegin(st_); }
-	[[nodiscard]] auto channels_end() const                                                             { return std::cend(st_); }
-	[[nodiscard]] auto channels_cbegin() const                                                          { return std::cbegin(st_); }
-	[[nodiscard]] auto channels_cend() const                                                            { return std::cend(st_); }
-	[[nodiscard]] auto data(channel_idx ch) -> ValueType*                                               { return detail::data(st_, ch); }
-	[[nodiscard]] auto data(channel_idx ch) const -> const ValueType*                                   { return detail::data(st_, ch); }
-	[[nodiscard]] auto at() -> channel_data_t<ValueType, Frs>&             requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
-	[[nodiscard]] auto at() const -> const channel_data_t<ValueType, Frs>& requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() -> ValueType*                                requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto data() const -> const ValueType*                    requires (is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
-	[[nodiscard]] auto at(frame_idx f) -> ValueType&                       requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(frame_idx f) const -> const ValueType&           requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(float f) const -> ValueType                      requires (is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&             { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>& { return detail::at(st_, ch); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> ValueType&                     { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const ValueType          { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, float f) const -> ValueType                    { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                    { return {st_}; }
+	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                      { return {}; }
+	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>        { return {st_}; }
+	[[nodiscard]] auto end() const -> const_frame_iterator<ValueType, Chs, Frs>          { return {}; }
+	[[nodiscard]] auto cbegin() const -> const_frame_iterator<ValueType, Chs, Frs>       { return {st_}; }
+	[[nodiscard]] auto cend() const -> const_frame_iterator<ValueType, Chs, Frs>         { return {}; }
+	[[nodiscard]] auto channels_begin() -> channel_iterator_t<ValueType, Frs>            { return std::begin(st_); }
+	[[nodiscard]] auto channels_end()   -> channel_iterator_t<ValueType, Frs>            { return std::end(st_); }
+	[[nodiscard]] auto channels_begin() const                                            { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_end() const                                              { return std::cend(st_); }
+	[[nodiscard]] auto channels_cbegin() const                                           { return std::cbegin(st_); }
+	[[nodiscard]] auto channels_cend() const                                             { return std::cend(st_); }
+	[[nodiscard]] auto data(channel_idx ch) -> ValueType*                                { return detail::data(st_, ch); }
+	[[nodiscard]] auto data(channel_idx ch) const -> const ValueType*                    { return detail::data(st_, ch); }
+	[[nodiscard]] auto at() -> channel_data_t<ValueType, Frs>&             requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
+	[[nodiscard]] auto at() const -> const channel_data_t<ValueType, Frs>& requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}); }
+	[[nodiscard]] auto data() -> ValueType*                                requires (concepts::is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto data() const -> const ValueType*                    requires (concepts::is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
+	[[nodiscard]] auto at(frame_idx f) -> ValueType&                       requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(frame_idx f) const -> const ValueType&           requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(float f) const -> ValueType                      requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
@@ -454,34 +462,42 @@ struct impl {
 		detail::set(st_, ch, f, value);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, frame_idx{0}, get_frame_count(), read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(frame_idx start, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, start, get_frame_count(), read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, frame_idx{0}, n, read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, start, n, read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(channel_idx ch, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, frame_idx{0}, get_frame_count(), read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(channel_idx ch, frame_idx start, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, start, get_frame_count(), read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(channel_idx ch, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, frame_idx{0}, n, read_fn);
 	}
 	template <typename ReadFn>
+		requires concepts::is_read_fn<ValueType, ReadFn>
 	auto read(channel_idx ch, frame_idx start, frame_count n, ReadFn read_fn) const -> frame_count {
 		return detail::read(st_, ch, start, n, read_fn);
 	}
@@ -492,34 +508,42 @@ struct impl {
 		return detail::write(st_, frame_idx{0}, data.get_frame_count(), data.st_);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(WriteFn write_fn) -> frame_count {
 		return detail::write(st_, frame_idx{0}, get_frame_count(), write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, frame_idx{0}, n, write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(frame_idx start, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, start, get_frame_count(), write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(frame_idx start, frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, start, n, write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(channel_idx ch, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, ch, frame_idx{0}, get_frame_count(), write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(channel_idx ch, frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, ch, frame_idx{0}, n, write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(channel_idx ch, frame_idx start, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, ch, start, get_frame_count(), write_fn);
 	}
 	template <typename WriteFn>
+		requires concepts::is_write_fn<ValueType, WriteFn>
 	auto write(channel_idx ch, frame_idx start, frame_count n, WriteFn write_fn) -> frame_count {
 		return detail::write(st_, ch, start, n, write_fn);
 	}
@@ -664,12 +688,5 @@ private:
 	ads::frame_count frame_count_;
 	dynamic_mono<ValueType> data_;
 };
-
-namespace concepts {
-
-template <typename ValueType, typename Fn> concept write_fn = detail::is_write_fn<ValueType, Fn>;
-template <typename ValueType, typename Fn> concept read_fn  = detail::is_read_fn<ValueType, Fn>;
-
-} // concepts
 
 } // namespace ads
