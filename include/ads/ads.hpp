@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ads-concepts-fns.hpp"
 #include <algorithm>
 #include <array>
 #include <boost/align/aligned_allocator.hpp>
@@ -13,11 +14,6 @@
 #include <vector>
 
 namespace ads {
-
-struct channel_count { uint64_t value = 0; auto operator<=>(const channel_count&) const = default; };
-struct channel_idx   { uint64_t value = 0; auto operator<=>(const channel_idx&) const = default; };
-struct frame_count   { uint64_t value = 0; auto operator<=>(const frame_count&) const = default; };
-struct frame_idx     { uint64_t value = 0; auto operator<=>(const frame_idx&) const = default; };
 
 static constexpr auto DYNAMIC_EXTENT   = std::numeric_limits<uint64_t>::max();
 static constexpr auto DYNAMIC_CHANNELS = channel_count{DYNAMIC_EXTENT};
@@ -161,6 +157,13 @@ auto data(const Storage& st, channel_idx ch) -> const typename Storage::value_ty
 	return st.at(ch.value).data();
 }
 
+template <typename ValueType, uint64_t Chs, uint64_t Frs>
+auto fill(storage<ValueType, Chs, Frs>& st, ValueType value) -> void {
+	for (auto& channel : st) {
+		std::fill(channel.begin(), channel.end(), value);
+	}
+}
+
 template <typename ValueType>
 auto resize(storage<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count channel_count, ads::frame_count frame_count) -> void {
 	st.resize(channel_count.value);
@@ -176,9 +179,22 @@ auto resize(storage<ValueType, Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_
 	}
 }
 
+template <typename ValueType, uint64_t Chs>
+auto resize(storage<ValueType, Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count, ValueType fill_value) -> void {
+	for (auto& channel : st) {
+		channel.resize(frame_count.value, fill_value);
+	}
+}
+
 template <typename ValueType, uint64_t Frs>
 auto resize(storage<ValueType, DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count) -> void {
 	st.resize(channel_count.value);
+}
+
+template <typename ValueType, uint64_t Frs>
+auto resize(storage<ValueType, DYNAMIC_EXTENT, Frs>& st, ads::channel_count channel_count, ValueType fill_value) -> void {
+	st.resize(channel_count.value);
+	fill(st, fill_value);
 }
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
@@ -193,49 +209,17 @@ auto set(storage<ValueType, Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Val
 	}
 }
 
-} // namespace detail
-
-namespace concepts {
-
-template <uint64_t Chs>
-concept is_mono_data = Chs == 1;
-
-template <typename ValueType, typename Fn>
-concept is_multi_channel_read_fn = requires(Fn fn, const ValueType* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
-	{ fn(buffer, channel, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
-};
-
-template <typename ValueType, typename Fn>
-concept is_multi_channel_write_fn = requires(Fn fn, ValueType* buffer, channel_idx channel, frame_idx frame_start, ads::frame_count frame_count) {
-	{ fn(buffer, channel, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
-};
-
-template <typename ValueType, typename Fn>
-concept is_single_channel_read_fn = requires(Fn fn, const ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
-	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
-};
-
-template <typename ValueType, typename Fn>
-concept is_single_channel_write_fn = requires(Fn fn, ValueType* buffer, frame_idx frame_start, ads::frame_count frame_count) {
-	{ fn(buffer, frame_start, frame_count) } -> std::same_as<ads::frame_count>;
-};
-
-template <typename ValueType, typename Fn>
-concept is_multi_channel_provider_fn = requires(Fn fn, channel_idx ch, frame_idx fr) {
-	{ fn(ch, fr) } -> std::same_as<ValueType>;
-};
-
-template <typename ValueType, typename Fn>
-concept is_single_channel_provider_fn = requires(Fn fn, frame_idx fr) {
-	{ fn(fr) } -> std::same_as<ValueType>;
-};
-
-template <typename ValueType, typename Fn> concept is_read_fn  = is_single_channel_read_fn<ValueType, Fn> || is_multi_channel_read_fn<ValueType, Fn>;
-template <typename ValueType, typename Fn> concept is_write_fn = is_single_channel_write_fn<ValueType, Fn> || is_multi_channel_write_fn<ValueType, Fn>;
-
-} // namespace concepts
-
-namespace detail {
+template <typename ValueType, uint64_t Chs, uint64_t Frs, typename Fn>
+	requires concepts::is_value_visitor_fn<ValueType, Fn>
+auto visit(storage<ValueType, Chs, Frs>& st, Fn fn) -> void {
+	const auto channel_count = get_channel_count(st);
+	const auto frame_count   = get_frame_count(st);
+	for (ads::channel_idx ch = {0}; ch < channel_count; ch++) {
+		for (ads::frame_idx fr = {0}; fr < frame_count; fr++) {
+			fn(ch, fr, at(st, ch, fr));
+		}
+	}
+}
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename ReadFn>
 	requires concepts::is_single_channel_read_fn<ValueType, ReadFn>
@@ -437,6 +421,11 @@ struct impl {
 	[[nodiscard]] auto at(frame_idx f) -> ValueType&                       requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	[[nodiscard]] auto at(frame_idx f) const -> const ValueType&           requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	[[nodiscard]] auto at(float f) const -> ValueType                      requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	template <typename Fn>
+		requires concepts::is_value_visitor_fn<ValueType, Fn>
+	auto visit(Fn fn) -> void {
+		detail::visit(st_, fn);
+	}
 	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
@@ -447,10 +436,20 @@ struct impl {
 	{
 		detail::resize(st_, channel_count);
 	}
+	auto resize(ads::channel_count channel_count, ValueType fill_value) -> void
+		requires (Chs == DYNAMIC_EXTENT)
+	{
+		detail::resize(st_, channel_count, fill_value);
+	}
 	auto resize(ads::frame_count frame_count) -> void
 		requires (Frs == DYNAMIC_EXTENT)
 	{
 		detail::resize(st_, frame_count);
+	}
+	auto resize(ads::frame_count frame_count, ValueType fill_value) -> void
+		requires (Frs == DYNAMIC_EXTENT)
+	{
+		detail::resize(st_, frame_count, fill_value);
 	}
 	auto set(frame_idx f, frame_t<ValueType, Chs> value) -> void {
 		auto pos = std::begin(value);
@@ -460,6 +459,9 @@ struct impl {
 	}
 	auto set(channel_idx ch, frame_idx f, ValueType value) -> void {
 		detail::set(st_, ch, f, value);
+	}
+	auto fill(ValueType value) -> void {
+		detail::fill(st_, value);
 	}
 	template <typename ReadFn>
 		requires concepts::is_read_fn<ValueType, ReadFn>

@@ -1,0 +1,63 @@
+#pragma once
+
+#include "ads-concepts-basic.hpp"
+
+namespace ads {
+
+struct channel_count { uint64_t value = 0; };
+struct channel_idx   { uint64_t value = 0; };
+struct frame_count   { uint64_t value = 0; };
+struct frame_idx     { uint64_t value = 0; };
+
+[[nodiscard]] constexpr inline auto operator*(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value * rhs}; }
+[[nodiscard]] constexpr inline auto operator+(double lhs, frame_count rhs) -> double                  { return lhs + rhs.value; }
+[[nodiscard]] constexpr inline auto operator+(frame_count lhs, frame_idx rhs) -> frame_count          { return {lhs.value + rhs.value}; }
+[[nodiscard]] constexpr inline auto operator+(frame_idx lhs, frame_idx rhs) -> frame_idx              { return {lhs.value + rhs.value}; }
+[[nodiscard]] constexpr inline auto operator+(frame_idx lhs, frame_count rhs) -> frame_idx            { return {lhs.value + rhs.value}; }
+[[nodiscard]] constexpr inline auto operator+(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value + rhs}; }
+[[nodiscard]] constexpr inline auto operator+(std::integral auto lhs, frame_idx rhs) -> frame_idx     { return {lhs + rhs.value}; }
+[[nodiscard]] constexpr inline auto operator-(frame_count lhs, frame_idx rhs) -> frame_count          { return {lhs.value - rhs.value}; }
+[[nodiscard]] constexpr inline auto operator-(frame_count lhs, frame_count rhs) -> frame_count        { return {lhs.value - rhs.value}; }
+[[nodiscard]] constexpr inline auto operator-(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value - rhs}; }
+[[nodiscard]] constexpr inline auto operator-(frame_idx lhs, frame_idx rhs) -> frame_idx              { return {lhs.value - rhs.value}; }
+[[nodiscard]] constexpr inline auto operator/(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value / rhs}; }
+[[nodiscard]] constexpr inline auto operator/(frame_idx lhs, frame_count rhs) -> frame_idx            { return {lhs.value / rhs.value}; }
+[[nodiscard]] constexpr inline auto operator/(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value / rhs}; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_count rhs)             { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_idx rhs)               { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, concepts::arithmetic auto rhs) { return lhs.value <=> rhs; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_count rhs)               { return rhs.value <=> lhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_idx rhs)                 { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(concepts::arithmetic auto lhs, frame_count rhs)   { return lhs <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(concepts::arithmetic auto lhs, frame_idx rhs)     { return lhs <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_count lhs, concepts::arithmetic auto rhs)   { return lhs.value <=> rhs; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_count lhs, frame_count rhs)                 { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_count lhs, frame_idx rhs)                   { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, concepts::arithmetic auto rhs)     { return lhs.value <=> rhs; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, frame_count rhs)                   { return rhs.value <=> lhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, frame_idx rhs)                     { return lhs.value <=> rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(channel_count lhs, channel_count rhs)       { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(channel_count lhs, std::integral auto rhs)  { return lhs.value == rhs; }
+[[nodiscard]] constexpr inline auto operator==(channel_count lhs, channel_idx rhs)         { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(channel_idx lhs, channel_count rhs)         { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(channel_idx lhs, channel_idx rhs)           { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(frame_count lhs, frame_count rhs)           { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(frame_count lhs, frame_idx rhs)             { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(frame_idx lhs, frame_count rhs)             { return lhs.value == rhs.value; }
+[[nodiscard]] constexpr inline auto operator==(frame_idx lhs, frame_idx rhs)               { return lhs.value == rhs.value; }
+constexpr inline auto operator+=(float& lhs, frame_count rhs) -> float&                    { lhs += rhs.value; return lhs; }
+constexpr inline auto operator+=(frame_count& lhs, frame_count rhs) -> frame_count&        { lhs.value += rhs.value; return lhs; }
+constexpr inline auto operator+=(frame_count& lhs, std::integral auto rhs) -> frame_count& { lhs.value += rhs; return lhs; }
+constexpr inline auto operator+=(frame_idx& lhs, frame_count rhs) -> frame_idx&            { lhs.value += rhs.value; return lhs; }
+constexpr inline auto operator+=(frame_idx& lhs, std::integral auto rhs) -> frame_idx&     { lhs.value += rhs; return lhs; }
+constexpr inline auto operator/=(frame_count& lhs, std::integral auto rhs) -> frame_count& { lhs.value /= rhs; return lhs; }
+constexpr inline auto operator/=(frame_idx& lhs, std::integral auto rhs) -> frame_idx&     { lhs.value /= rhs; return lhs; }
+constexpr inline auto operator++(frame_idx& lhs) -> frame_idx&         { lhs.value++; return lhs; }
+constexpr inline auto operator++(frame_idx& lhs, int) -> frame_idx     { auto tmp = lhs; lhs.value++; return tmp; }
+constexpr inline auto operator++(channel_idx& lhs) -> channel_idx&     { lhs.value++; return lhs; }
+constexpr inline auto operator++(channel_idx& lhs, int) -> channel_idx { auto tmp = lhs; lhs.value++; return tmp; }
+constexpr inline auto operator--(frame_idx& lhs) -> frame_idx&         { lhs.value--; return lhs; }
+constexpr inline auto operator--(frame_idx& lhs, int) -> frame_idx     { auto tmp = lhs; lhs.value--; return tmp; }
+
+
+} // ads
