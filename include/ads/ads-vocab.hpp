@@ -26,7 +26,7 @@ struct frame_idx     { uint64_t value = 0; };
 [[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_count rhs)             { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_idx rhs)               { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, concepts::arithmetic auto rhs) { return lhs.value <=> rhs; }
-[[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_count rhs)               { return rhs.value <=> lhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_count rhs)               { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_idx rhs)                 { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(concepts::arithmetic auto lhs, frame_count rhs)   { return lhs <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(concepts::arithmetic auto lhs, frame_idx rhs)     { return lhs <=> rhs.value; }
@@ -34,7 +34,7 @@ struct frame_idx     { uint64_t value = 0; };
 [[nodiscard]] constexpr inline auto operator<=>(frame_count lhs, frame_count rhs)                 { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(frame_count lhs, frame_idx rhs)                   { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, concepts::arithmetic auto rhs)     { return lhs.value <=> rhs; }
-[[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, frame_count rhs)                   { return rhs.value <=> lhs.value; }
+[[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, frame_count rhs)                   { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(frame_idx lhs, frame_idx rhs)                     { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator==(channel_count lhs, channel_count rhs)       { return lhs.value == rhs.value; }
 [[nodiscard]] constexpr inline auto operator==(channel_count lhs, std::integral auto rhs)  { return lhs.value == rhs; }

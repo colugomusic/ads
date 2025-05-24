@@ -172,6 +172,14 @@ auto resize(storage<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel
 	}
 }
 
+template <typename ValueType>
+auto resize(storage<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>& st, ads::channel_count channel_count, ads::frame_count frame_count, ValueType fill_value) -> void {
+	st.resize(channel_count.value);
+	for (auto& channel : st) {
+		channel.resize(frame_count.value, fill_value);
+	}
+}
+
 template <typename ValueType, uint64_t Chs>
 auto resize(storage<ValueType, Chs, DYNAMIC_EXTENT>& st, ads::frame_count frame_count) -> void {
 	for (auto& channel : st) {
@@ -380,7 +388,9 @@ namespace detail {
 template <typename ValueType, uint64_t Chs, uint64_t Frs>
 struct impl {
 	impl() = default;
-	impl(storage<ValueType, Chs, Frs>&& st) : st_{std::move(st)} {}
+	impl(storage<ValueType, Chs, Frs>&& st) : st_{std::move(st)} {
+		fill(ValueType{0});
+	}
 	impl& operator=(const impl&)     = default;
 	impl& operator=(impl&&) noexcept = default;
 	impl(const impl&)                = default;
@@ -430,6 +440,11 @@ struct impl {
 		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
 	{
 		detail::resize(st_, channel_count, frame_count);
+	}
+	auto resize(ads::channel_count channel_count, ads::frame_count frame_count, ValueType fill_value) -> void
+		requires (Chs == DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
+	{
+		detail::resize(st_, channel_count, frame_count, fill_value);
 	}
 	auto resize(ads::channel_count channel_count) -> void
 		requires (Chs == DYNAMIC_EXTENT)
