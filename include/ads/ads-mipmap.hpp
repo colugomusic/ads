@@ -24,7 +24,12 @@ namespace ads {
 struct lod_index { uint64_t value = 0; };
 
 template <typename REP> struct mipmap_minmax { mipmap_detail::min<REP> min; mipmap_detail::max<REP> max; };
-struct mipmap_region { ads::frame_idx beg; ads::frame_idx end; };
+
+struct mipmap_region {
+	ads::frame_idx beg;
+	ads::frame_idx end;
+	[[nodiscard]] constexpr auto is_empty() const -> bool { return beg >= end; }
+};
 
 //	lower is better quality, but uses more memory
 //	0: is a regular mipmap, i.e. each level is half the size of the previous one
