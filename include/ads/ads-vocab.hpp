@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ads-concepts-basic.hpp"
+#include <cassert>
 #include <compare>
 #include <concepts>
 
@@ -10,7 +11,6 @@ struct channel_count { uint64_t value = 0; };
 struct channel_idx   { uint64_t value = 0; };
 struct frame_count   { uint64_t value = 0; };
 struct frame_idx     { uint64_t value = 0; };
-struct region        { frame_idx beg, end; };
 
 [[nodiscard]] constexpr inline auto operator*(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value * rhs}; }
 [[nodiscard]] constexpr inline auto operator+(double lhs, frame_count rhs) -> double                  { return lhs + rhs.value; }
@@ -84,5 +84,12 @@ constexpr inline auto operator++(channel_idx& lhs, int) -> channel_idx     { aut
 constexpr inline auto operator--(frame_idx& lhs) -> frame_idx&             { lhs.value--; return lhs; }
 constexpr inline auto operator--(frame_idx& lhs, int) -> frame_idx         { auto tmp = lhs; lhs.value--; return tmp; }
 
+struct region {
+	frame_idx beg, end;
+	[[nodiscard]] constexpr auto size() const noexcept -> frame_count {
+		assert (beg <= end);
+		return {end.value - beg.value};
+	}
+};
 
 } // ads
