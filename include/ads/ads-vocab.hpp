@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ads-concepts-basic.hpp"
+#include <algorithm>
 #include <cassert>
 #include <compare>
 #include <concepts>
