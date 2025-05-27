@@ -90,6 +90,8 @@ struct region {
 		assert (beg <= end);
 		return {end.value - beg.value};
 	}
+	[[nodiscard]] constexpr auto min() const noexcept -> frame_idx { return {std::min(beg.value, end.value)}; }
+	[[nodiscard]] constexpr auto max() const noexcept -> frame_idx { return {std::max(beg.value, end.value)}; }
 };
 
 } // ads
