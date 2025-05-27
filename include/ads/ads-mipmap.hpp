@@ -67,7 +67,8 @@ auto encode(float value) -> REP {
 
 namespace ads::mipmap_detail {
 
-struct bin_size { int value = 0; };
+struct bin_size  { int value = 0; };
+struct lod_frame { uint64_t value = 0; };
 
 template <typename REP, uint64_t Chs>
 struct lod {
@@ -92,10 +93,11 @@ struct impl {
 };
 
 template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
-auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_index, ads::channel_idx channel, ads::frame_idx lod_frame) -> mipmap_minmax<REP>;
+auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_index, ads::channel_idx channel, lod_frame frame) -> mipmap_minmax<REP>;
 
+template <typename FrameIdx>
 struct lerp_helper {
-	struct { ads::frame_idx a; ads::frame_idx b; } index;
+	struct { FrameIdx a; FrameIdx b; } index;
 	float t;
 };
 
@@ -142,14 +144,14 @@ auto lerp(Value a, Value b, float t) -> Result {
 	return static_cast<Result>((t * (bf - af)) + af);
 }
 
-template <typename Result, typename Value> [[nodiscard]]
-auto lerp(const lerp_helper& lh, Value a, Value b) -> Result {
+template <typename Result, typename Value, typename FrameIdx> [[nodiscard]]
+auto lerp(const lerp_helper<FrameIdx>& lh, Value a, Value b) -> Result {
 	return lerp<Result>(a, b, lh.t);
 }
 
-[[nodiscard]] inline
-auto make_lerp_helper(float frame) -> lerp_helper {
-	lerp_helper lh;
+template <typename FrameIdx> [[nodiscard]]
+auto make_lerp_helper(float frame) -> lerp_helper<FrameIdx> {
+	lerp_helper<FrameIdx> lh;
 	lh.index.a.value = static_cast<uint64_t>(std::floor(frame));
 	lh.index.b.value = static_cast<uint64_t>(std::ceil(frame));
 	lh.t = frame - lh.index.a.value;
@@ -166,7 +168,7 @@ auto get_frame_count(const mipmap_detail::impl<REP, Chs, Frs>& impl) -> ads::fra
 	return impl.lod0.st.get_frame_count();
 }
 
-template <typename REP, uint64_t Chs> [[nodiscard]]
+template <typename REP, uint64_t Chs> requires (Chs != ads::DYNAMIC_EXTENT) [[nodiscard]]
 auto make_lod(ads::lod_index index, ads::frame_count frame_count, mipmap_resolution res) -> mipmap_detail::lod<REP, Chs> {
 	mipmap_detail::lod<REP, Chs> lod;
 	lod.index    = index;
@@ -185,15 +187,25 @@ auto make_lod(ads::lod_index index, ads::channel_count channel_count, ads::frame
 }
 
 template <typename REP, uint64_t Chs> [[nodiscard]]
-auto read(const mipmap_detail::lod<REP, Chs>& lod, ads::channel_idx ch, ads::frame_idx lod_frame) -> mipmap_minmax<REP> {
+auto read(const mipmap_detail::lod<REP, Chs>& lod, ads::channel_idx ch, lod_frame frame) -> mipmap_minmax<REP> {
 	if (is_empty(lod.valid_region)) {
 		return {};
 	}
-	lod_frame.value = std::min(lod.st.get_frame_count().value - 1, lod_frame.value);
-	if (lod_frame.value < lod.valid_region.beg || lod_frame.value >= lod.valid_region.end) {
+	frame.value = std::min(lod.st.get_frame_count().value - 1, frame.value);
+	if (frame.value < lod.valid_region.beg || frame.value >= lod.valid_region.end) {
 		return {};
 	}
-	return lod.st.at(ch, lod_frame);
+	return lod.st.at(ch, ads::frame_idx{frame.value});
+}
+
+template <typename REP, uint64_t Chs> [[nodiscard]]
+auto read(const mipmap_detail::lod<REP, Chs>& lod, ads::channel_idx ch, float frame) -> mipmap_minmax<REP> {
+	const auto lerp_frame = make_lerp_helper<lod_frame>(frame);
+	const auto a_value = read(lod, ch, lerp_frame.index.a);
+	const auto b_value = read(lod, ch, lerp_frame.index.b);
+	const auto min = mipmap_detail::min<REP>{lerp<REP>(lerp_frame, a_value.min.value, b_value.min.value)};
+	const auto max = mipmap_detail::max<REP>{lerp<REP>(lerp_frame, a_value.max.value, b_value.max.value)};
+	return { min, max };
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
@@ -210,7 +222,7 @@ auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::channel_idx ch, a
 
 template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
 auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::channel_idx ch, float frame) -> REP {
-	const auto lerp_frame = make_lerp_helper(frame);
+	const auto lerp_frame = make_lerp_helper<ads::frame_idx>(frame);
 	const auto a_value    = read(impl, ch, lerp_frame.index.a);
 	const auto b_value    = read(impl, ch, lerp_frame.index.b);
 	return lerp<REP>(lerp_frame, a_value, b_value);
@@ -226,60 +238,69 @@ auto as_float(REP value, max_source_clip max_clip) -> float {
 	return fvalue;
 }
 
-template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
-auto init(mipmap_detail::impl<REP, Chs, Frs>* impl, mipmap_resolution res, ads::max_source_clip max_source_clip) -> void {
-	impl->res             = {REP(res.value + 2)};
-	impl->max_source_clip = max_source_clip;
-	const auto frame_count = get_frame_count(*impl);
-	if constexpr (Chs == ads::DYNAMIC_EXTENT) {
-		const auto channel_count = get_channel_count(*impl);
-		auto size  = ads::frame_count{frame_count.value / impl->res.value};
-		auto index = lod_index{1};
-		while (size > 0ULL) {
-			impl->lods.push_back(mipmap_detail::make_lod<REP>(index, channel_count, {size}, impl->res));
-			index.value++;
-			size /= impl->res.value;
-		}
-	}
-	else {
-		auto size  = ads::frame_count{frame_count.value / impl->res.value};
-		auto index = lod_index{1};
-		while (size > 0ULL) {
-			impl->lods.push_back(mipmap_detail::make_lod<REP, Chs>(index, {size}, impl->res));
-			index.value++;
-			size /= impl->res.value;
-		}
-	}
-}
-
 template <typename REP> [[nodiscard]]
 auto make(ads::channel_count channel_count, ads::frame_count frame_count, mipmap_resolution res, ads::max_source_clip max_source_clip) -> mipmap_detail::impl<REP, ads::DYNAMIC_EXTENT, ads::DYNAMIC_EXTENT> {
 	mipmap_detail::impl<REP, ads::DYNAMIC_EXTENT, ads::DYNAMIC_EXTENT> impl;
-	impl->lod0.st.resize(channel_count, VALUE_SILENT<REP>());
-	init(&impl, res, max_source_clip);
+	impl.lod0.st.resize(channel_count, frame_count, VALUE_SILENT<REP>());
+	impl.res             = {REP(res.value + 2)};
+	impl.max_source_clip = max_source_clip;
+	auto size  = ads::frame_count{frame_count.value / impl.res.value};
+	auto index = lod_index{1};
+	while (size > 0ULL) {
+		impl.lods.push_back(mipmap_detail::make_lod<REP>(index, channel_count, {size}, impl.res));
+		index.value++;
+		size /= impl.res.value;
+	}
 	return impl;
 }
 
-template <typename REP, uint64_t Chs> [[nodiscard]]
+template <typename REP, uint64_t Chs> requires (Chs != ads::DYNAMIC_EXTENT) [[nodiscard]]
 auto make(ads::frame_count frame_count, mipmap_resolution res, ads::max_source_clip max_source_clip) -> mipmap_detail::impl<REP, Chs, ads::DYNAMIC_EXTENT> {
 	mipmap_detail::impl<REP, Chs, ads::DYNAMIC_EXTENT> impl;
-	impl->lod0.st.resize(frame_count, VALUE_SILENT<REP>());
-	init(&impl, res, max_source_clip);
+	impl.lod0.st.resize(frame_count, VALUE_SILENT<REP>());
+	impl.res             = {REP(res.value + 2)};
+	impl.max_source_clip = max_source_clip;
+	auto size  = ads::frame_count{frame_count.value / impl.res.value};
+	auto index = lod_index{1};
+	while (size > 0ULL) {
+		impl.lods.push_back(mipmap_detail::make_lod<REP, Chs>(index, {size}, impl.res));
+		index.value++;
+		size /= impl.res.value;
+	}
 	return impl;
 }
 
-template <typename REP, uint64_t Frs> [[nodiscard]]
+template <typename REP, uint64_t Frs> requires (Frs != ads::DYNAMIC_EXTENT) [[nodiscard]]
 auto make(ads::channel_count channel_count, mipmap_resolution res, ads::max_source_clip max_source_clip) -> mipmap_detail::impl<REP, ads::DYNAMIC_EXTENT, Frs> {
 	mipmap_detail::impl<REP, ads::DYNAMIC_EXTENT, Frs> impl;
-	impl->lod0.st.resize(channel_count);
-	init(&impl, res, max_source_clip);
+	impl.lod0.st.resize(channel_count, VALUE_SILENT<REP>());
+	impl.res             = {REP(res.value + 2)};
+	impl.max_source_clip = max_source_clip;
+	constexpr auto frame_count = ads::frame_count{Frs};
+	auto size  = ads::frame_count{frame_count.value / impl.res.value};
+	auto index = lod_index{1};
+	while (size > 0ULL) {
+		impl.lods.push_back(mipmap_detail::make_lod<REP>(index, channel_count, {size}, impl.res));
+		index.value++;
+		size /= impl.res.value;
+	}
 	return impl;
 }
 
-template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
+template <typename REP, uint64_t Chs, uint64_t Frs> requires (Chs != ads::DYNAMIC_EXTENT && Frs != ads::DYNAMIC_EXTENT) [[nodiscard]]
 auto make(mipmap_resolution res, ads::max_source_clip max_source_clip) -> mipmap_detail::impl<REP, Chs, Frs> {
 	mipmap_detail::impl<REP, Chs, Frs> impl;
-	init(&impl, res, max_source_clip);
+	impl.lod0.st.fill(VALUE_SILENT<REP>());
+	impl.res             = {REP(res.value + 2)};
+	impl.max_source_clip = max_source_clip;
+	constexpr auto frame_count = ads::frame_count{Frs};
+	auto size  = ads::frame_count{frame_count.value / impl.res.value};
+	auto index = lod_index{1};
+	while (size > 0ULL) {
+		impl.lods.push_back(mipmap_detail::make_lod<REP, Chs>(index, {size}, impl.res));
+		index.value++;
+		size /= impl.res.value;
+	}
 	return impl;
 }
 
@@ -316,9 +337,9 @@ auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_ind
 		return { value, value };
 	}
 	lod_index.value = std::min(lod_index.value, impl.lods.size());
-	const auto& lod = impl.lods[lod_index.value - 1];
-	frame /= lod.bin_size.value;
-	const auto lerp_frame = mipmap_detail::make_lerp_helper(frame);
+	const auto& lod   = impl.lods[lod_index.value - 1];
+	const auto lod_fr = frame / lod.bin_size.value;
+	const auto lerp_frame = mipmap_detail::make_lerp_helper<lod_frame>(lod_fr);
 	const auto a_value    = mipmap_detail::read(lod, ch, lerp_frame.index.a);
 	const auto b_value    = mipmap_detail::read(lod, ch, lerp_frame.index.b);
 	const auto min        = mipmap_detail::min<REP>{mipmap_detail::lerp<REP>(lerp_frame, a_value.min.value, b_value.min.value)};
@@ -330,7 +351,7 @@ template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
 auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, float lod, ads::channel_idx ch, float frame) -> mipmap_minmax<REP> {
 	assert(ch < get_channel_count(impl));
 	assert(lod >= 0);
-	const auto lerp_lod = mipmap_detail::make_lerp_helper(lod);
+	const auto lerp_lod = mipmap_detail::make_lerp_helper<ads::frame_idx>(lod);
 	const auto a_value  = read(impl, ads::lod_index{lerp_lod.index.a.value}, ch, frame);
 	const auto b_value  = read(impl, ads::lod_index{lerp_lod.index.b.value}, ch, frame);
 	const auto min      = mipmap_detail::min<REP>{mipmap_detail::lerp<REP>(lerp_lod, a_value.min.value, b_value.min.value)};
@@ -339,24 +360,37 @@ auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, float lod, ads::channe
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
-auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_index, ads::channel_idx ch, ads::frame_idx lod_frame) -> mipmap_minmax<REP> {
+auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_index, ads::channel_idx ch, lod_frame frame) -> mipmap_minmax<REP> {
 	assert(ch < get_channel_count(impl));
 	if (lod_index.value == 0) {
-		const auto value = mipmap_detail::read(impl, ch, lod_frame);
+		const auto value = mipmap_detail::read(impl, ch, ads::frame_idx{frame.value});
 		return { value, value };
 	}
 	assert(lod_index.value <= impl.lods.size());
 	const auto& lod = impl.lods[lod_index.value - 1];
-	return mipmap_detail::read(lod, ch, lod_frame);
+	return mipmap_detail::read(lod, ch, frame);
 }
 
 template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
-auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, float lod, ads::channel_idx ch, ads::frame_idx lod_frame) -> mipmap_minmax<REP> {
+auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_index, ads::channel_idx ch, ads::frame_idx frame) -> mipmap_minmax<REP> {
+	assert(ch < get_channel_count(impl));
+	if (lod_index.value == 0) {
+		const auto value = mipmap_detail::read(impl, ch, frame);
+		return { value, value };
+	}
+	assert(lod_index.value <= impl.lods.size());
+	const auto& lod   = impl.lods[lod_index.value - 1];
+	const auto lod_fr = static_cast<float>(frame.value) / lod.bin_size.value;
+	return mipmap_detail::read(lod, ch, lod_fr);
+}
+
+template <typename REP, uint64_t Chs, uint64_t Frs> [[nodiscard]]
+auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, float lod, ads::channel_idx ch, ads::frame_idx frame) -> mipmap_minmax<REP> {
 	assert(ch < get_channel_count(impl));
 	assert(lod >= 0);
-	const auto lerp_lod = mipmap_detail::make_lerp_helper(lod);
-	const auto a_value  = read(impl, ads::lod_index{lerp_lod.index.a.value}, ch, lod_frame);
-	const auto b_value  = read(impl, ads::lod_index{lerp_lod.index.b.value}, ch, lod_frame);
+	const auto lerp_lod = mipmap_detail::make_lerp_helper<ads::frame_idx>(lod);
+	const auto a_value  = read(impl, ads::lod_index{lerp_lod.index.a.value}, ch, frame);
+	const auto b_value  = read(impl, ads::lod_index{lerp_lod.index.b.value}, ch, frame);
 	return mipmap_detail::lerp(a_value, b_value, lerp_lod.t);
 }
 
@@ -481,26 +515,23 @@ struct mipmap {
 	mipmap& operator=(mipmap&&) noexcept = default;
 	mipmap(ads::channel_count channel_count, ads::frame_count frame_count, mipmap_resolution res, ads::max_source_clip max_source_clip)
 		requires (Chs == ads::DYNAMIC_EXTENT) && (Frs == ads::DYNAMIC_EXTENT)
+		: impl_{mipmap_detail::make<REP>(channel_count, frame_count, res, max_source_clip)}
 	{
-		impl_.lod0.st.resize(channel_count, frame_count, mipmap_detail::VALUE_SILENT<REP>());
-		init(&impl_, res, max_source_clip);
 	}
 	mipmap(ads::frame_count frame_count, mipmap_resolution res, ads::max_source_clip max_source_clip)
 		requires (Chs != ads::DYNAMIC_EXTENT) && (Frs == ads::DYNAMIC_EXTENT)
+		: impl_{mipmap_detail::make<REP, Chs>(frame_count, res, max_source_clip)}
 	{
-		impl_.lod0.st.resize(frame_count, mipmap_detail::VALUE_SILENT<REP>());
-		init(&impl_, res, max_source_clip);
 	}
 	mipmap(ads::channel_count channel_count, mipmap_resolution res, ads::max_source_clip max_source_clip)
 		requires (Chs == ads::DYNAMIC_EXTENT) && (Frs != ads::DYNAMIC_EXTENT)
+		: impl_{mipmap_detail::make<REP, Frs>(channel_count, res, max_source_clip)}
 	{
-		impl_.lod0.st.resize(channel_count, mipmap_detail::VALUE_SILENT<REP>());
-		init(&impl_, res, max_source_clip);
 	}
 	mipmap(mipmap_resolution res, ads::max_source_clip max_source_clip)
 		requires (Chs != ads::DYNAMIC_EXTENT) && (Frs != ads::DYNAMIC_EXTENT)
+		: impl_{mipmap_detail::make<REP, Chs, Frs>(res, max_source_clip)}
 	{
-		init(&impl_, res, max_source_clip);
 	}
 	[[nodiscard]]
 	auto as_float(REP value) const -> float {
@@ -527,21 +558,15 @@ struct mipmap {
 	auto read(float lod, ads::channel_idx ch, float frame) const -> mipmap_minmax<REP> {
 		return mipmap_detail::read(impl_, lod, ch, frame);
 	}
-	// Interpolate between two LODs
+	// Interpolate between two LODs of the same frame
 	[[nodiscard]]
-	auto read(float lod, ads::channel_idx ch, ads::frame_idx lod_frame) const -> mipmap_minmax<REP> {
-		return mipmap_detail::read(impl_, lod, ch, lod_frame);
+	auto read(float lod, ads::channel_idx ch, ads::frame_idx frame) const -> mipmap_minmax<REP> {
+		return mipmap_detail::read(impl_, lod, ch, frame);
 	}
 	// No interpolation.
-	// lod_frame is the LOD-local frame, i.e. in a 100-frame sample
-	// with detail=0 so each LOD is half the size of the previous,
-	// the lod_frame parameter would range from
-	// 0-99 for LOD 0,
-	// 0-49 for LOD 1,
-	// 0-24 for LOD 2, etc.
 	[[nodiscard]]
-	auto read(ads::lod_index lod_index, ads::channel_idx ch, ads::frame_idx lod_frame) const -> mipmap_minmax<REP> {
-		return mipmap_detail::read(impl_, lod_index, ch, lod_frame);
+	auto read(ads::lod_index lod_index, ads::channel_idx ch, ads::frame_idx frame) const -> mipmap_minmax<REP> {
+		return mipmap_detail::read(impl_, lod_index, ch, frame);
 	}
 	// Writes level zero data. Mipmap data for the other levels won't be generated until update() is called
 	auto set(ads::channel_idx ch, ads::frame_idx fr, float value) -> void {
