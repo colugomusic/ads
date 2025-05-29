@@ -18,6 +18,7 @@ struct frame_idx     { uint64_t value = 0; };
 [[nodiscard]] constexpr inline auto operator+(frame_count lhs, frame_idx rhs) -> frame_count          { return {lhs.value + rhs.value}; }
 [[nodiscard]] constexpr inline auto operator%(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value % rhs}; }
 [[nodiscard]] constexpr inline auto operator%(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value % rhs}; }
+[[nodiscard]] constexpr inline auto operator%(frame_idx lhs, frame_count rhs) -> frame_idx            { return {lhs.value % rhs.value}; }
 [[nodiscard]] constexpr inline auto operator+(channel_idx lhs, std::integral auto rhs) -> channel_idx { return {lhs.value + rhs}; }
 [[nodiscard]] constexpr inline auto operator+(frame_idx lhs, frame_idx rhs) -> frame_idx              { return {lhs.value + rhs.value}; }
 [[nodiscard]] constexpr inline auto operator+(frame_idx lhs, frame_count rhs) -> frame_idx            { return {lhs.value + rhs.value}; }
