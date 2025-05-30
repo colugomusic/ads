@@ -15,6 +15,7 @@ struct frame_idx     { uint64_t value = 0; };
 
 [[nodiscard]] constexpr inline auto operator*(frame_count lhs, std::integral auto rhs) -> frame_idx   { return {lhs.value * rhs}; }
 [[nodiscard]] constexpr inline auto operator*(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value * rhs}; }
+[[nodiscard]] constexpr inline auto operator*(std::integral auto lhs, frame_idx rhs) -> frame_idx     { return {lhs * rhs.value}; }
 [[nodiscard]] constexpr inline auto operator+(double lhs, frame_count rhs) -> double                  { return lhs + rhs.value; }
 [[nodiscard]] constexpr inline auto operator+(frame_count lhs, frame_idx rhs) -> frame_count          { return {lhs.value + rhs.value}; }
 [[nodiscard]] constexpr inline auto operator%(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value % rhs}; }
@@ -30,6 +31,7 @@ struct frame_idx     { uint64_t value = 0; };
 [[nodiscard]] constexpr inline auto operator-(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value - rhs}; }
 [[nodiscard]] constexpr inline auto operator-(frame_idx lhs, frame_idx rhs) -> frame_idx              { return {lhs.value - rhs.value}; }
 [[nodiscard]] constexpr inline auto operator-(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value - rhs}; }
+[[nodiscard]] constexpr inline auto operator-(std::integral auto lhs, frame_idx rhs) -> frame_idx     { return {lhs - rhs.value}; }
 [[nodiscard]] constexpr inline auto operator/(frame_count lhs, std::integral auto rhs) -> frame_count { return {lhs.value / rhs}; }
 [[nodiscard]] constexpr inline auto operator/(frame_idx lhs, frame_count rhs) -> frame_idx            { return {lhs.value / rhs.value}; }
 [[nodiscard]] constexpr inline auto operator/(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value / rhs}; }
