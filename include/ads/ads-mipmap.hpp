@@ -378,7 +378,7 @@ auto read(const mipmap_detail::impl<REP, Chs, Frs>& impl, ads::lod_index lod_ind
 		const auto value = mipmap_detail::read(impl, ch, frame);
 		return { value, value };
 	}
-	assert(lod_index.value <= impl.lods.size());
+	lod_index.value = std::min(lod_index.value, impl.lods.size());
 	const auto& lod   = impl.lods[lod_index.value - 1];
 	const auto lod_fr = static_cast<float>(frame.value) / lod.bin_size.value;
 	return mipmap_detail::read(lod, ch, lod_fr);
