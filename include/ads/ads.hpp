@@ -84,8 +84,8 @@ auto at(Storage& st, channel_idx channel, frame_idx frame) -> typename Storage::
 
 template <typename Storage> [[nodiscard]]
 auto at(const Storage& st, channel_idx channel, float frame) -> typename Storage::value_type {
-	const auto index0 = frame_idx{static_cast<uint64_t>(std::floor(frame))};
-	const auto index1 = frame_idx{static_cast<uint64_t>(std::ceil(frame))};
+	const auto index0 = frame_idx{static_cast<int64_t>(std::floor(frame))};
+	const auto index1 = frame_idx{static_cast<int64_t>(std::ceil(frame))};
 	const auto t      = frame - index0.value;
 	return std::lerp(at(st, channel, index0), at(st, channel, index1), t);
 }
