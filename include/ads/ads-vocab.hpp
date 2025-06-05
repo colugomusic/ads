@@ -5,6 +5,7 @@
 #include <cassert>
 #include <compare>
 #include <concepts>
+#include <cstdint>
 
 namespace ads {
 
