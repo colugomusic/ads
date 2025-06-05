@@ -236,11 +236,11 @@ auto read(const storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx star
 		throw std::underflow_error{std::format("ads::detail::read() with frame start = {} is insane", start.value)};
 	}
 	const auto& channel = at(st, ch);
-	if (start.value >= channel.size()) {
+	if (start >= channel.size()) {
 		return {0};
 	}
-	if (start.value + frame_count.value >= channel.size()) {
-		frame_count.value = channel.size() - start.value;
+	if (start + frame_count >= channel.size()) {
+		frame_count = {static_cast<uint64_t>(channel.size()) - static_cast<uint64_t>(start.value)};
 	}
 	return read_fn(channel.data() + start.value, start, frame_count);
 }
@@ -280,7 +280,7 @@ auto write(storage<ValueType, Chs, Frs>& st, channel_idx ch, frame_idx start, ad
 		throw std::underflow_error{std::format("ads::detail::write() with frame start = {} is insane", start.value)};
 	}
 	auto& channel = at(st, ch);
-	if (start.value >= channel.size()) {
+	if (start >= channel.size()) {
 		return {0};
 	}
 	if (start.value + frame_count.value >= channel.size()) {
@@ -355,10 +355,10 @@ struct frame_iterator_base {
 	auto operator->() const { return detail::at(*st, frame); }
 	auto operator++(int)    { auto copy = *this; ++frame.value; return copy; }
 	auto operator--(int)    { auto copy = *this; --frame.value; return copy; }
-	auto operator+=(uint64_t n) { frame.value += n; return *this; }
-	auto operator-=(uint64_t n) { frame.value -= n; return *this; }
-	auto operator+(uint64_t n) const { return frame_iterator_base{*st, frame_idx{frame.value + n}}; }
-	auto operator-(uint64_t n) const { return frame_iterator_base{*st, frame_idx{frame.value - n}}; }
+	auto operator+=(int64_t n) { frame.value += n; return *this; }
+	auto operator-=(int64_t n) { frame.value -= n; return *this; }
+	auto operator+(int64_t n) const { return frame_iterator_base{*st, frame_idx{frame.value + n}}; }
+	auto operator-(int64_t n) const { return frame_iterator_base{*st, frame_idx{frame.value - n}}; }
 	auto operator==(const frame_iterator_base& other) const {
 		if (is_end(*this)) return is_end(other);
 		if (is_end(other)) return false;
@@ -682,8 +682,8 @@ struct interleaved {
 	{}
 	[[nodiscard]] auto get_channel_count() const -> channel_count   { return channel_count_; }
 	[[nodiscard]] auto get_frame_count() const -> frame_count       { return frame_count_; }
-	[[nodiscard]] auto at(uint64_t index) -> ValueType&             { return data_.at(frame_idx{index}); }
-	[[nodiscard]] auto at(uint64_t index) const -> const ValueType& { return data_.at(frame_idx{index}); }
+	[[nodiscard]] auto at(int64_t index) -> ValueType&              { return data_.at(frame_idx{index}); }
+	[[nodiscard]] auto at(int64_t index) const -> const ValueType&  { return data_.at(frame_idx{index}); }
 	[[nodiscard]] auto begin()                                      { return data_.at().begin(); }
 	[[nodiscard]] auto end()                                        { return data_.at().end(); }
 	[[nodiscard]] auto begin() const                                { return data_.at().begin(); }
