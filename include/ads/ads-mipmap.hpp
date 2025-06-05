@@ -430,7 +430,7 @@ auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::frame_idx start, ads::
 
 template <typename REP, uint64_t Chs, uint64_t Frs>
 auto write(mipmap_detail::impl<REP, Chs, Frs>* impl, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frames_to_write, auto provider, auto conversion) -> ads::frame_count {
-	return write(impl, ch, start, frames_to_write, [impl, provider](REP* buffer, ads::frame_idx start, ads::frame_count frames_to_write) {
+	return write(impl, ch, start, frames_to_write, [impl, provider, conversion](REP* buffer, ads::frame_idx start, ads::frame_count frames_to_write) {
 		for (frame_idx i = {0ULL}; i < frames_to_write; i++) {
 			buffer[i.value] = conversion(provider(ch, i));
 		}
