@@ -14,7 +14,7 @@ class AdsConanFile(ConanFile):
 	exports_sources = "CMakeLists.txt", "include/*"
 
 	def layout(self):
-		cmake_layout(self, src_folder=".")
+		cmake_layout(self)
 
 	def requirements(self):
 		self.requires("boost/[>=1.83.0]")
