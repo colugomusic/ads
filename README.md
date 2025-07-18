@@ -26,7 +26,10 @@ If you are like me then you have probably written multiple variations of this. T
 
 This library consolidates all these variations into one consistent interface, and provides utilities for reading and writing the data, iterating over multi-channel data frame-by-frame, and interleaving operations.
 
-## Requirements
+## Setup
+If you're using Conan then you know what to do. If you're not using Conan then:
+
+### Requirements
 
 - c++20 or above
 - This library make use of `aligned_allocator` and `small_vector` from [Boost](https://www.boost.org/) so you just need to make sure these are available in your include paths:
@@ -36,7 +39,7 @@ This library consolidates all these variations into one consistent interface, an
 ```
 If using CMake then this will happen automatically as long as `find_package(Boost REQUIRED COMPONENTS headers CONFIG)` succeeds.
 
-## CMake (3.23+)
+### CMake (3.23+)
 After cloning you can use the library in your CMake project like this:
 ```cmake
 add_subdirectory("/path/to/ads")
