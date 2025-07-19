@@ -15,6 +15,7 @@ class AdsConanFile(ConanFile):
 
 	def layout(self):
 		cmake_layout(self)
+		self.cpp.source.includedirs = ["include/ads"]
 
 	def requirements(self):
 		self.requires("boost/[>=1.83.0]")
@@ -33,4 +34,4 @@ class AdsConanFile(ConanFile):
 		cmake.install()
 	
 	def package_info(self):
-		self.cpp_info.includedirs = ["include"]
+		self.cpp_info.includedirs = ["include/ads"]
