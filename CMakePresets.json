@@ -1,0 +1,51 @@
+{
+	"version": 8,
+	"configurePresets": [
+		{
+			"name": "base",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+			}
+		},
+		{
+			"name": "msvc",
+			"displayName": "MSVC (Visual Studio 2022)",
+			"generator": "Visual Studio 17 2022",
+			"binaryDir": "${sourceDir}/out/build/msvc",
+			"inherits": "base"
+		},
+		{
+			"name": "gcc-debug",
+			"displayName": "GCC Debug",
+			"generator": "Unix Makefiles",
+			"binaryDir": "${sourceDir}/out/build/gcc-debug",
+			"inherits": "base",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "gcc-relwithdebinfo",
+			"displayName": "GCC RelWithDebInfo",
+			"generator": "Unix Makefiles",
+			"binaryDir": "${sourceDir}/out/build/gcc-relwithdebinfo",
+			"inherits": "base",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "RelWithDebInfo"
+			}
+		},
+		{
+			"name": "xcode",
+			"displayName": "Xcode",
+			"generator": "Xcode",
+			"binaryDir": "${sourceDir}/out/build/xcode",
+			"inherits": "base"
+		}
+	],
+	"buildPresets": [
+		{ "name": "msvc", "configurePreset": "msvc" },
+		{ "name": "gcc-debug", "configurePreset": "gcc-debug" },
+		{ "name": "gcc-relwithdebinfo", "configurePreset": "gcc-relwithdebinfo" },
+		{ "name": "xcode", "configurePreset": "xcode" }
+	]
+}
