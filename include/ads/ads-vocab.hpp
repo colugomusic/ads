@@ -38,7 +38,7 @@ struct frame_idx     { int64_t value = 0; };
 [[nodiscard]] constexpr inline auto operator/(frame_idx lhs, std::integral auto rhs) -> frame_idx     { return {lhs.value / static_cast<int64_t>(rhs)}; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_count rhs)             { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, channel_idx rhs)               { return lhs.value <=> rhs.value; }
-[[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, concepts::arithmetic auto rhs) { return lhs.value <=> rhs; }
+[[nodiscard]] constexpr inline auto operator<=>(channel_count lhs, concepts::arithmetic auto rhs) { return lhs.value <=> static_cast<uint64_t>(rhs); }
 [[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_count rhs)               { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(channel_idx lhs, channel_idx rhs)                 { return lhs.value <=> rhs.value; }
 [[nodiscard]] constexpr inline auto operator<=>(concepts::arithmetic auto lhs, frame_count rhs)   { return lhs <=> rhs.value; }
