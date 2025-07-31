@@ -14,12 +14,10 @@ target_sources(ads INTERFACE
 		include/ads/ads-ml.hpp
 		include/ads/ads-vocab.hpp
 )
-find_package(Boost REQUIRED COMPONENTS headers CONFIG)
+find_package(Boost REQUIRED COMPONENTS headers)
 target_link_libraries(ads INTERFACE Boost::headers)
 target_compile_features(ads INTERFACE cxx_std_20)
-install(TARGETS ads
-	FILE_SET HEADERS
-)
+install(TARGETS ads FILE_SET HEADERS)
 if (ADS_BUILD_TESTS)
 	add_subdirectory(test)
 endif()
