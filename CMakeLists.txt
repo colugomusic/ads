@@ -17,7 +17,15 @@ target_sources(ads INTERFACE
 find_package(Boost REQUIRED COMPONENTS headers)
 target_link_libraries(ads INTERFACE Boost::headers)
 target_compile_features(ads INTERFACE cxx_std_20)
-install(TARGETS ads FILE_SET HEADERS)
 if (ADS_BUILD_TESTS)
 	add_subdirectory(test)
 endif()
+include(CMakePackageConfigHelpers)
+install(TARGETS ads EXPORT adsTargets FILE_SET HEADERS)
+install(EXPORT adsTargets FILE adsTargets.cmake NAMESPACE ads:: DESTINATION lib/cmake/ads)
+configure_package_config_file(
+    "${CMAKE_CURRENT_LIST_DIR}/cmake/adsConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/adsConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/ads
+)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/adsConfig.cmake" DESTINATION lib/cmake/ads)
