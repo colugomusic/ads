@@ -21,7 +21,7 @@ if (ADS_BUILD_TESTS)
 	add_subdirectory(test)
 endif()
 include(CMakePackageConfigHelpers)
-install(TARGETS ads EXPORT adsTargets FILE_SET HEADERS)
+install(TARGETS ads EXPORT adsTargets FILE_SET HEADERS DESTINATION include/ads)
 install(EXPORT adsTargets FILE adsTargets.cmake NAMESPACE ads:: DESTINATION lib/cmake/ads)
 configure_package_config_file(
     "${CMAKE_CURRENT_LIST_DIR}/cmake/adsConfig.cmake.in"
