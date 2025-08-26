@@ -1,4 +1,4 @@
-- name:                boost
+- name:                Boost
   url:                 https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.zip
   src_subdir:          boost-1.86.0
   build-type:          cmake
