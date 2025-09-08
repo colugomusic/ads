@@ -700,6 +700,11 @@ struct interleaved {
 		frame_count_ = frame_count;
 		data_.resize(ads::frame_count{channel_count_.value * frame_count_.value});
 	}
+	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void {
+		channel_count_ = channel_count;
+		frame_count_   = frame_count;
+		data_.resize(ads::frame_count{channel_count_.value * frame_count_.value});
+	}
 private:
 	ads::channel_count channel_count_;
 	ads::frame_count frame_count_;
