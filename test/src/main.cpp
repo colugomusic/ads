@@ -1,3 +1,4 @@
+#include "ads-vocab.hpp"
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <numeric>
 #include "ads.hpp"
@@ -223,6 +224,49 @@ TEST_CASE("write examples") {
 			if (i < 50)       { CHECK (buffer[i] == doctest::Approx(0.0f)); }
 			else if (i < 100) { CHECK (buffer[i] == doctest::Approx(1.0f)); }
 			else              { CHECK (buffer[i] == doctest::Approx(0.0f)); }
+		}
+		return frame_count;
+	});
+}
+
+TEST_CASE("convert fully_dynamic to dynamic_stereo") {
+	auto src_1ch = ads::make<float>(ads::channel_count{1}, ads::frame_count{10});
+	auto src_2ch = ads::make<float>(ads::channel_count{2}, ads::frame_count{10});
+	auto src_3ch = ads::make<float>(ads::channel_count{3}, ads::frame_count{10});
+	auto dst = ads::make_stereo<float>(ads::frame_count{10});
+	auto write_frame_indices = [](float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; i++) {
+			buffer[i] = float(i + start.value);
+		}
+		return frame_count;
+	};
+	src_1ch.write(write_frame_indices);
+	src_2ch.write(write_frame_indices);
+	src_3ch.write(write_frame_indices);
+	dst = std::move(src_1ch);
+	dst.read(ads::channel_idx{0}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; i++) {
+			CHECK(buffer[i] == doctest::Approx(float(i + start.value)));
+		}
+		return frame_count;
+	});
+	dst.read(ads::channel_idx{1}, [](const float* buffer, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; i++) {
+			CHECK(buffer[i] == doctest::Approx(0.0f));
+		}
+		return frame_count;
+	});
+	dst = std::move(src_2ch);
+	dst.read([](const float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; i++) {
+			CHECK(buffer[i] == doctest::Approx(float(i + start.value)));
+		}
+		return frame_count;
+	});
+	dst = std::move(src_3ch);
+	dst.read([](const float* buffer, ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count){
+		for (auto i = 0; i < frame_count.value; i++) {
+			CHECK(buffer[i] == doctest::Approx(float(i + start.value)));
 		}
 		return frame_count;
 	});

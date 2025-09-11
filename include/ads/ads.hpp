@@ -405,6 +405,17 @@ struct impl {
 		if constexpr (Frs == DYNAMIC_EXTENT) { return detail::get_frame_count(st_); }
 		else                                 { return {Frs}; }
 	}
+	impl& operator=(impl<ValueType, DYNAMIC_EXTENT, DYNAMIC_EXTENT>&& rhs)
+		requires (Chs != DYNAMIC_EXTENT && Frs == DYNAMIC_EXTENT)
+	{
+		for (ads::channel_idx i = {0}; i < Chs; i++) {
+			if (i >= rhs.get_channel_count()) {
+				break;
+			}
+			st_.at(i.value) = std::move(rhs.at(i));
+		}
+		return *this;
+	}
 	[[nodiscard]] auto at(channel_idx ch) -> channel_data_t<ValueType, Frs>&             { return detail::at(st_, ch); }
 	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>& { return detail::at(st_, ch); }
 	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> ValueType&                     { return detail::at(st_, ch, f); }
