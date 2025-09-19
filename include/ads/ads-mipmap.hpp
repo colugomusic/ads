@@ -555,6 +555,10 @@ struct mipmap {
 	auto encode(float value) const -> REP {
 		return mipmap_detail::encode(impl_, value);
 	}
+	[[nodiscard]]
+	auto get_max_source_clip() const -> ads::max_source_clip {
+		return impl_.max_source_clip;
+	}
 	// Interpolate between two frames of the same LOD
 	[[nodiscard]]
 	auto read(ads::lod_index lod_index, ads::channel_idx ch, float frame) const -> mipmap_minmax<REP> {
