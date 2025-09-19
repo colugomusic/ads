@@ -592,6 +592,11 @@ struct mipmap {
 	// Write level zero frame data beginning at frame_begin, using a custom writer function
 	// The writer needs to encode the frames to the range VALUE_MIN<REP>..VALUE_MAX<REP> itself
 	template <typename WriterFn>
+		requires ads::concepts::is_multi_channel_write_fn<REP, WriterFn>
+	auto write(ads::frame_idx start, ads::frame_count frame_count, WriterFn writer) -> ads::frame_count {
+		return mipmap_detail::write(&impl_, start, frame_count, writer);
+	}
+	template <typename WriterFn>
 		requires ads::concepts::is_single_channel_write_fn<REP, WriterFn>
 	auto write(ads::channel_idx ch, ads::frame_idx start, ads::frame_count frame_count, WriterFn writer) -> ads::frame_count {
 		return mipmap_detail::write(&impl_, ch, start, frame_count, writer);
