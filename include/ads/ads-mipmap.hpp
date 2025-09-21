@@ -557,11 +557,11 @@ struct mipmap {
 	}
 	[[nodiscard]]
 	auto get_channel_count() const -> ads::channel_count {
-		return detail::get_channel_count(impl_);
+		return mipmap_detail::get_channel_count(impl_);
 	}
 	[[nodiscard]]
 	auto get_frame_count() const -> ads::frame_count {
-		return detail::get_frame_count(impl_);
+		return mipmap_detail::get_frame_count(impl_);
 	}
 	[[nodiscard]]
 	auto get_max_source_clip() const -> ads::max_source_clip {
