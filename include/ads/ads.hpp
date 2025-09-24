@@ -219,7 +219,7 @@ auto set(storage<ValueType, Chs, Frs>& st, ads::frame_idx frame_idx, frame_t<Val
 
 template <typename ValueType, uint64_t Chs, uint64_t Frs, typename Fn>
 	requires concepts::is_value_visitor_fn<ValueType, Fn>
-auto visit(storage<ValueType, Chs, Frs>& st, Fn fn) -> void {
+auto visit(const storage<ValueType, Chs, Frs>& st, Fn fn) -> void {
 	const auto channel_count = get_channel_count(st);
 	const auto frame_count   = get_frame_count(st);
 	for (ads::channel_idx ch = {0}; ch < channel_count; ch++) {
