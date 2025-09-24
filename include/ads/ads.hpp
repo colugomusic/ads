@@ -444,7 +444,7 @@ struct impl {
 	[[nodiscard]] auto at(float f) const -> ValueType                      requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	template <typename Fn>
 		requires concepts::is_value_visitor_fn<ValueType, Fn>
-	auto visit(Fn fn) -> void {
+	auto visit(Fn fn) const -> void {
 		detail::visit(st_, fn);
 	}
 	auto resize(ads::channel_count channel_count, ads::frame_count frame_count) -> void
