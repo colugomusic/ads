@@ -83,7 +83,7 @@ auto at(Storage& st, channel_idx channel, frame_idx frame) -> typename Storage::
 }
 
 template <typename Storage> [[nodiscard]]
-auto at(const Storage& st, channel_idx channel, float frame) -> typename Storage::value_type {
+auto at(const Storage& st, channel_idx channel, double frame) -> typename Storage::value_type {
 	const auto index0 = frame_idx{static_cast<int64_t>(std::floor(frame))};
 	const auto index1 = frame_idx{static_cast<int64_t>(std::ceil(frame))};
 	const auto t      = frame - index0.value;
@@ -420,7 +420,7 @@ struct impl {
 	[[nodiscard]] auto at(channel_idx ch) const -> const channel_data_t<ValueType, Frs>& { return detail::at(st_, ch); }
 	[[nodiscard]] auto at(channel_idx ch, frame_idx f) -> ValueType&                     { return detail::at(st_, ch, f); }
 	[[nodiscard]] auto at(channel_idx ch, frame_idx f) const -> const ValueType          { return detail::at(st_, ch, f); }
-	[[nodiscard]] auto at(channel_idx ch, float f) const -> ValueType                    { return detail::at(st_, ch, f); }
+	[[nodiscard]] auto at(channel_idx ch, double f) const -> ValueType                   { return detail::at(st_, ch, f); }
 	[[nodiscard]] auto begin() -> frame_iterator<ValueType, Chs, Frs>                    { return {st_}; }
 	[[nodiscard]] auto end() -> frame_iterator<ValueType, Chs, Frs>                      { return {}; }
 	[[nodiscard]] auto begin() const -> const_frame_iterator<ValueType, Chs, Frs>        { return {st_}; }
@@ -441,7 +441,7 @@ struct impl {
 	[[nodiscard]] auto data() const -> const ValueType*                    requires (concepts::is_mono_data<Chs>) { return detail::data(st_, channel_idx{0}); }
 	[[nodiscard]] auto at(frame_idx f) -> ValueType&                       requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	[[nodiscard]] auto at(frame_idx f) const -> const ValueType&           requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
-	[[nodiscard]] auto at(float f) const -> ValueType                      requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
+	[[nodiscard]] auto at(double f) const -> ValueType                     requires (concepts::is_mono_data<Chs>) { return detail::at(st_, channel_idx{0}, f); }
 	template <typename Fn>
 		requires concepts::is_value_visitor_fn<ValueType, Fn>
 	auto visit(Fn fn) const -> void {
