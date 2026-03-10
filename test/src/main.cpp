@@ -271,3 +271,12 @@ TEST_CASE("convert fully_dynamic to dynamic_stereo") {
 		return frame_count;
 	});
 }
+
+TEST_CASE("lerp compile") {
+	auto d0 = ads::make<float>(ads::channel_count{2}, ads::frame_count{10});
+	auto d1 = ads::make<float, 2>(ads::frame_count{10});
+	auto d2 = ads::make<float, 10>(ads::channel_count{2});
+	auto value0 = d0.at(ads::channel_idx{1}, 5.0);
+	auto value1 = d1.at(ads::channel_idx{1}, 5.0);
+	auto value2 = d2.at(ads::channel_idx{1}, 5.0);
+}

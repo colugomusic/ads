@@ -62,6 +62,9 @@ struct storage : channels_t<Chs, channel_data_t<ValueType, Frs>> {
 	using const_channel_iterator = const_channel_iterator_t<ValueType, Frs>;
 };
 
+template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> channel_count { return {Storage::CHANNEL_COUNT}; }
+template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
+
 template <typename Storage>
 	requires (Storage::FRAME_COUNT == DYNAMIC_EXTENT)
 [[nodiscard]]
@@ -69,8 +72,12 @@ auto get_frame_count(const Storage& st) -> frame_count {
 	return st.empty() ? frame_count{0} : frame_count{st.front().size()};
 }
 
-template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> channel_count { return {Storage::CHANNEL_COUNT}; }
-template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
+template <typename Storage>
+	requires (Storage::FRAME_COUNT != DYNAMIC_EXTENT)
+[[nodiscard]]
+auto get_frame_count(const Storage&) -> frame_count {
+	return frame_count{Storage::FRAME_COUNT};
+}
 
 template <typename Storage> [[nodiscard]]
 auto at(Storage& st, channel_idx channel) -> channel_data_t<typename Storage::value_type, Storage::FRAME_COUNT>& {
@@ -98,7 +105,7 @@ auto at(const Storage& st, channel_idx channel, double frame) -> typename Storag
 	const auto index0 = frame_idx{static_cast<int64_t>(std::floor(frame))};
 	const auto index1 = frame_idx{static_cast<int64_t>(std::ceil(frame))};
 	const auto t      = frame - index0.value;
-	const auto frs    = st.get_frame_count();
+	const auto frs    = get_frame_count(st);
 	const auto value0 = at(st, channel, index0);
 	const auto value1 = index1.value < frs ? at(st, channel, index1) : 0.0f;
 	return std::lerp(value0, value1, t);
