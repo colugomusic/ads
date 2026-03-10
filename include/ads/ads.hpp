@@ -62,6 +62,16 @@ struct storage : channels_t<Chs, channel_data_t<ValueType, Frs>> {
 	using const_channel_iterator = const_channel_iterator_t<ValueType, Frs>;
 };
 
+template <typename Storage>
+	requires (Storage::FRAME_COUNT == DYNAMIC_EXTENT)
+[[nodiscard]]
+auto get_frame_count(const Storage& st) -> frame_count {
+	return st.empty() ? frame_count{0} : frame_count{st.front().size()};
+}
+
+template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> channel_count { return {Storage::CHANNEL_COUNT}; }
+template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
+
 template <typename Storage> [[nodiscard]]
 auto at(Storage& st, channel_idx channel) -> channel_data_t<typename Storage::value_type, Storage::FRAME_COUNT>& {
 	return st.at(channel.value);
@@ -140,16 +150,6 @@ template <typename Storage>
 auto get_channel_count(const Storage& st) -> channel_count {
 	return {st.size()};
 }
-
-template <typename Storage>
-	requires (Storage::FRAME_COUNT == DYNAMIC_EXTENT)
-[[nodiscard]]
-auto get_frame_count(const Storage& st) -> frame_count {
-	return st.empty() ? frame_count{0} : frame_count{st.front().size()};
-}
-
-template <typename Storage> [[nodiscard]] consteval auto get_channel_count() -> channel_count { return {Storage::CHANNEL_COUNT}; }
-template <typename Storage> [[nodiscard]] consteval auto get_frame_count()   -> frame_count   { return {Storage::FRAME_COUNT}; }
 
 template <typename Storage> [[nodiscard]]
 auto data(Storage& st, channel_idx ch) -> typename Storage::value_type* {
