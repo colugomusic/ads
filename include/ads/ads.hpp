@@ -84,10 +84,14 @@ auto at(Storage& st, channel_idx channel, frame_idx frame) -> typename Storage::
 
 template <typename Storage> [[nodiscard]]
 auto at(const Storage& st, channel_idx channel, double frame) -> typename Storage::value_type {
+	assert (frame >= 0.0);
 	const auto index0 = frame_idx{static_cast<int64_t>(std::floor(frame))};
 	const auto index1 = frame_idx{static_cast<int64_t>(std::ceil(frame))};
 	const auto t      = frame - index0.value;
-	return std::lerp(at(st, channel, index0), at(st, channel, index1), t);
+	const auto frs    = get_frame_count(st).value;
+	const auto value0 = at(st, channel, index0);
+	const auto value1 = index1.value < frs ? at(st, channel, index1) : 0.0f;
+	return std::lerp(value0, value1, t);
 }
 
 template <typename Storage> [[nodiscard]]
