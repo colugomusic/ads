@@ -107,7 +107,7 @@ auto at(const Storage& st, channel_idx channel, double frame) -> typename Storag
 	const auto t      = frame - index0.value;
 	const auto frs    = get_frame_count(st);
 	const auto value0 = at(st, channel, index0);
-	const auto value1 = index1.value < frs ? at(st, channel, index1) : 0.0f;
+	const auto value1 = index1 < frs ? at(st, channel, index1) : 0.0f;
 	return std::lerp(value0, value1, t);
 }
 
