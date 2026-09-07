@@ -1,4 +1,3 @@
 - name:                Boost
   url:                 https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.zip
-  src_subdir:          boost-1.86.0
   cmake-options-mac:   -DBOOST_CONTEXT_ABI=sysv -DBOOST_CONTEXT_ARCHITECTURE=combined
